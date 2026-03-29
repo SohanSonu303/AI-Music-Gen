@@ -65,14 +65,14 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 **Music generation flow:**
 1. `POST /music/generateMusic` calls MusicGPT `POST /MusicAI`, inserts 2 rows into `music_metadata` (one per `conversion_id`), returns immediately
 2. Two `BackgroundTask`s poll MusicGPT `GET /byId` (`conversionType=MUSIC_AI`) every 5s independently (max 120s before marking `FAILED`)
-3. On `COMPLETED`: downloads MP3, uploads to Supabase Storage at `{BUCKET_NAME}/{project_id}/{task_id}/{conversion_id}.mp3`, updates metadata row with storage URL, title, duration, and generated lyrics
+3. On `COMPLETED`: downloads MP3, uploads to Supabase Storage at `{BUCKET_NAME}/{user_id}/{task_id}/{conversion_id}.mp3`, updates metadata row with storage URL, title, duration, and generated lyrics
 
 **Inpaint flow:**
 1. `POST /inpaint/inpaint` receives `id` (source `music_metadata` UUID) + inpaint params
 2. Fetches the source row to copy `project_id`, `user_name`, `user_email`, `type`
 3. Calls MusicGPT `POST /inpaint` (multipart/form-data), inserts 2 new rows with `is_cloned = <source_id>`, returns immediately
 4. Two `BackgroundTask`s poll MusicGPT `GET /byId` (`conversionType=INPAINT`) every 5s (same timeout as music generation)
-5. On `COMPLETED`: same download + Supabase Storage upload as music generation
+5. On `COMPLETED`: same download + Supabase Storage upload as music generation, stored at `{BUCKET_NAME}/{user_id}/{task_id}/{conversion_id}.mp3`
 
 **Lyrics generation flow:**
 1. `POST /lyrics/generate` receives `user_id`, `user_name`, `prompt`, and optional `style`, `mood`, `theme`, `tone`
@@ -86,7 +86,7 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 `id` (int), `project_name`, `created_by`, `created_at`, `updated_at`
 
 **`music_metadata` table**
-`id` (UUID), `project_id` (text), `user_name`, `user_email`, `type` (music/vocal/sfx/stem),
+`id` (UUID), `project_id` (text), `user_id` (text), `user_name`, `user_email`, `type` (music/vocal/sfx/stem),
 `task_id`, `conversion_id`, `status` (IN_QUEUE/COMPLETED/ERROR/FAILED),
 `prompt`, `music_style`, `title`, `duration` (float), `audio_url`, `album_cover_path`,
 `generated_lyrics`, `is_cloned` (UUID, nullable — source row id when created via inpaint),

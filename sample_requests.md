@@ -45,7 +45,7 @@ All requests go to `POST /lyrics/generate`. Only `user_id`, `user_name`, and `pr
 
 ## Music Generation
 
-All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, `user_email`, `type`, and `prompt` are required.
+All requests go to `POST /music/generateMusic`. Only `project_id`, `user_id`, `user_name`, `user_email`, `type`, and `prompt` are required.
 
 ---
 
@@ -55,6 +55,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "proj_001",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "music",
@@ -69,6 +70,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "proj_002",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "music",
@@ -83,6 +85,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "proj_003",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "music",
@@ -97,6 +100,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "proj_004",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "music",
@@ -111,6 +115,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "proj_005",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "music",
@@ -129,6 +134,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "proj_006",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "music",
@@ -144,6 +150,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "proj_007",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "music",
@@ -159,6 +166,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "proj_008",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "music",
@@ -174,6 +182,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "proj_009",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "music",
@@ -189,6 +198,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "proj_010",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "music",
@@ -208,6 +218,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "proj_011",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "vocal",
@@ -222,6 +233,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "proj_012",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "vocal",
@@ -235,6 +247,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "1",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Sohan",
   "user_email": "sohan@example.com",
   "type": "music",
@@ -248,6 +261,7 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
 ```json
 {
   "project_id": "1",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "user_name": "Jhon",
   "user_email": "sohan@example.com",
   "type": "music",

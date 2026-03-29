@@ -26,7 +26,7 @@ async def inpaint_music(inpaint: InpaintCreate, background_tasks: BackgroundTask
                 MusicService.poll_and_store,
                 record["task_id"],
                 record["conversion_id"],
-                record["project_id"],
+                inpaint.user_id,
                 "INPAINT",
             )
         logger.info("Inpaint job submitted: task_id=%s source_id=%s", records[0]["task_id"], inpaint.id)

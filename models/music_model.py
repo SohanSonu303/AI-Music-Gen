@@ -15,6 +15,7 @@ class MusicType(str, Enum):
 # Required to create a music generation job
 class MusicCreate(BaseModel):
     project_id: str
+    user_id: str
     user_name: str
     user_email: str
     type: MusicType
@@ -39,6 +40,7 @@ class MusicCreate(BaseModel):
 class InpaintCreate(BaseModel):
     """Request body for the inpaint endpoint."""
     id: str                                     # source music_metadata UUID to clone from
+    user_id: str                                # user performing the inpaint
     audio_url: str                              # public URL of the audio to inpaint
     prompt: str                                 # description of the change to make
     replace_start_at: float                     # start of the region to replace (seconds)

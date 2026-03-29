@@ -26,7 +26,7 @@ async def create_music(music: MusicCreate, background_tasks: BackgroundTasks):
                 MusicService.poll_and_store,
                 record["task_id"],
                 record["conversion_id"],
-                music.project_id,
+                music.user_id,
             )
         logger.info("Music job submitted: task_id=%s", records[0]["task_id"])
         return records
