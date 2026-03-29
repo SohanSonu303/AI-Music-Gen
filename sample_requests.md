@@ -1,4 +1,49 @@
-# Sample Request Bodies — Music Generation
+# Sample Request Bodies — Music Generation & Lyrics
+
+---
+
+## Lyrics Generation
+
+All requests go to `POST /lyrics/generate`. Only `user_id`, `user_name`, and `prompt` are required. Optional fields (`style`, `mood`, `theme`, `tone`) are appended to the prompt sent to MusicGPT. Generated lyrics are stored in the `prompt` column of `lyrics_metadata`.
+
+### Love Song Lyrics
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "a love song about missing someone across the ocean",
+  "style": "pop ballad",
+  "mood": "melancholic",
+  "theme": "long distance love",
+  "tone": "soft and emotional"
+}
+```
+
+### Hip-Hop / Rap Lyrics
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "a rap about grinding and rising from nothing",
+  "style": "hip-hop",
+  "mood": "motivated",
+  "theme": "hustle and success",
+  "tone": "aggressive and confident"
+}
+```
+
+### Minimal (prompt only)
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "an upbeat summer anthem about freedom"
+}
+```
+
+---
+
+## Music Generation
 
 All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, `user_email`, `type`, and `prompt` are required.
 
@@ -198,6 +243,21 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_name`, 
   "make_instrumental": true,
   "output_length": 210
 }
+```
+
+```json
+{
+  "project_id": "1",
+  "user_name": "Jhon",
+  "user_email": "sohan@example.com",
+  "type": "music",
+  "prompt": "love song about chasing dreams and never giving up",
+  "music_style": "sad, romantic",
+  "lyrics": "[Verse]\nThe floorboards still hold the weight of your shadow\nA ghost in the corner where the light used to bend\nI trace the cold outline of every hollow promise\nAnd wonder exactly when the beginning met the end\nThe coffee sits bitter in a cup made for two\nWhile the rain writes a ledger on the window pane\nEvery photograph is a wound that refuses to close\nAnd I am the only one left to shoulder the stain\n\n[Pre-Chorus]\nI am memorizing the silence you left behind\nTranslating the distance between your heart and mine\nThe clocks have all frozen in the heat of the fray\nWhile I try to scrub the scent of your ghost away\n\n[Chorus]\nThis is the ache of a bridge burned while standing upon it\nA slow-motion tumble through a sky painted grey\nI gave you the marrow and the breath from my lungs\nOnly to watch you just crumble and drift far away\nIt is the heavy pull of a tide that has turned\nThe salt in the stitches of a lesson unlearned\nI am drowning in the shallow end of our history\nWhile you sail on toward a brand new mystery\n\n[Verse]\nThe closet is empty but the hangers still rattle\nLike skeletal fingers reaching out for the latch\nI found a stray button from the coat that you wore\nA tiny plastic relic that I cannot detach\nThe neighbors are talking through the thin plaster walls\nAbout seasons and reason and the coming of snow\nBut they do not know the way a soul starts to fray\nWhen it has no direction and nowhere to go\n\n[Pre-Chorus]\nI am memorizing the silence you left behind\nTranslating the distance between your heart and mine\nThe clocks have all frozen in the heat of the fray\nWhile I try to scrub the scent of your ghost away\n\n[Chorus]\nThis is the ache of a bridge burned while standing upon it\nA slow-motion tumble through a sky painted grey\nI gave you the marrow and the breath from my lungs\nOnly to watch you just crumble and drift far away\nIt is the heavy pull of a tide that has turned\nThe salt in the stitches of a lesson unlearned\nI am drowning in the shallow end of our history\nWhile you sail on toward a brand new mystery\n\n[Chorus]\nThis is the ache of a bridge burned while standing upon it\nA slow-motion tumble through a sky painted grey\nI gave you the marrow and the breath from my lungs\nOnly to watch you just crumble and drift far away\nIt is the heavy pull of a tide that has turned\nThe salt in the stitches of a lesson unlearned\nI am drowning in the shallow end of our history\nWhile you sail on toward a brand new mystery\n\n[Chorus]\nThis is the ache of a bridge burned while standing upon it\nA slow-motion tumble through a sky painted grey\nI gave you the marrow and the breath from my lungs\nOnly to watch you just crumble and drift far away\nIt is the heavy pull of a tide that has turned\nThe salt in the stitches of a lesson unlearned\nI am drowning in the shallow end of our history\nWhile you sail on toward a brand new mystery\n\n[Outro]",
+  "gender": "male",
+  "output_length": 180
+}
+
 ```
 ---
 

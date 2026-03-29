@@ -38,14 +38,17 @@ AI-Music-Gen/
 ├── sample_requests.md        # Example request bodies for different music styles
 ├── models/
 │   ├── project_model.py      # projectCreate, projectResponse
-│   └── music_model.py        # MusicCreate, MusicResponse, MusicType enum
+│   ├── music_model.py        # MusicCreate, MusicResponse, MusicType enum
+│   └── lyrics_model.py       # LyricsCreate, LyricsResponse
 ├── routers/
 │   ├── project_router.py     # POST /projects/, GET /projects/
 │   ├── music_router.py       # POST /music/generateMusic
-│   └── inpaint_router.py     # POST /inpaint/inpaint
+│   ├── inpaint_router.py     # POST /inpaint/inpaint
+│   └── lyrics_router.py      # POST /lyrics/generate
 └── services/
     ├── project_service.py    # Supabase CRUD for projects table
-    └── music_service.py      # MusicGPT API calls, polling, Supabase Storage upload
+    ├── music_service.py      # MusicGPT API calls, polling, Supabase Storage upload
+    └── lyrics_service.py     # MusicGPT lyrics generation, Supabase insert
 ```
 
 ## Architecture
@@ -71,6 +74,12 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 4. Two `BackgroundTask`s poll MusicGPT `GET /byId` (`conversionType=INPAINT`) every 5s (same timeout as music generation)
 5. On `COMPLETED`: same download + Supabase Storage upload as music generation
 
+**Lyrics generation flow:**
+1. `POST /lyrics/generate` receives `user_id`, `user_name`, `prompt`, and optional `style`, `mood`, `theme`, `tone`
+2. Builds a combined prompt by concatenating all non-null context fields (`prompt + mood + style + theme + tone`)
+3. Calls MusicGPT `GET /prompt_to_lyrics?prompt=<combined_prompt>` — synchronous, returns lyrics immediately (no polling)
+4. Inserts one row into `lyrics_metadata` with `is_lyrics=True` and generated lyrics stored in the `prompt` column
+
 ## Database
 
 **`projects` table**
@@ -82,6 +91,11 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 `prompt`, `music_style`, `title`, `duration` (float), `audio_url`, `album_cover_path`,
 `generated_lyrics`, `is_cloned` (UUID, nullable — source row id when created via inpaint),
 `created_at`, `updated_at`
+
+**`lyrics_metadata` table**
+`id` (bigint), `user_id` (uuid), `user_name`, `prompt` (stores generated lyrics output),
+`is_lyrics` (bool, always `true` for this flow), `style`, `mood`, `theme`, `tone`,
+`created_at`
 
 ## Environment
 

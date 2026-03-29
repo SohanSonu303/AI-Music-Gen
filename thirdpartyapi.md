@@ -201,3 +201,19 @@ response = requests.post(url, headers=headers, data=data)
 result = response.json()
 # result["task_id"], result["conversion_id_1"], result["conversion_id_2"]
 ```
+
+## lyrics generator
+```
+curl --request GET \
+  --url 'https://api.musicgpt.com/api/public/v1/prompt_to_lyrics?prompt=create%20a%20love%20song' \
+  --header 'Authorization: someauth'
+
+{
+  "success": true,
+  "task_id": "task-lyrics-2345",
+  "message": "Lyrics generated successfully",
+  "lyrics": "Under the silver moonlight we sway...\n...\n",
+  "credit_estimate": 10
+}
+
+```
