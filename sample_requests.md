@@ -343,6 +343,73 @@ curl -X POST http://localhost:8000/separate/ \
 
 ---
 
+## Download Music Tracks
+
+Fetch both generated tracks for a given `task_id`. Sent as a `GET` request with query parameters.
+
+### cURL
+```bash
+curl -X GET "http://localhost:8000/download/?user_id=a1b2c3d4-e5f6-7890-abcd-ef1234567890&task_id=task-xyz-123"
+```
+
+### Expected Response (tracks still processing)
+```json
+{
+  "task_id": "task-xyz-123",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "tracks": [
+    {
+      "conversion_id": "conv-abc-001",
+      "status": "IN_QUEUE",
+      "title": null,
+      "audio_url": null,
+      "duration": null,
+      "album_cover_path": null,
+      "generated_lyrics": null
+    },
+    {
+      "conversion_id": "conv-abc-002",
+      "status": "IN_QUEUE",
+      "title": null,
+      "audio_url": null,
+      "duration": null,
+      "album_cover_path": null,
+      "generated_lyrics": null
+    }
+  ]
+}
+```
+
+### Expected Response (tracks completed)
+```json
+{
+  "task_id": "task-xyz-123",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "tracks": [
+    {
+      "conversion_id": "conv-abc-001",
+      "status": "COMPLETED",
+      "title": "Chasing Dreams",
+      "audio_url": "https://<supabase>/storage/v1/object/public/music-generated/a1b2c3d4-.../task-xyz-123/conv-abc-001.mp3",
+      "duration": 180.0,
+      "album_cover_path": "https://...",
+      "generated_lyrics": "Verse 1: ..."
+    },
+    {
+      "conversion_id": "conv-abc-002",
+      "status": "COMPLETED",
+      "title": "Chasing Dreams (Alt)",
+      "audio_url": "https://<supabase>/storage/v1/object/public/music-generated/a1b2c3d4-.../task-xyz-123/conv-abc-002.mp3",
+      "duration": 182.0,
+      "album_cover_path": "https://...",
+      "generated_lyrics": "Verse 1: ..."
+    }
+  ]
+}
+```
+
+---
+
 ## Type Values Reference
 
 | `type` value | Use when |

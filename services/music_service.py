@@ -56,6 +56,7 @@ class MusicService:
 
         base_record = {
             "project_id": data.project_id,
+            "user_id": data.user_id,
             "user_name": data.user_name,
             "user_email": data.user_email,
             "type": data.type.value,
@@ -118,6 +119,7 @@ class MusicService:
 
         base_record = {
             "project_id": source["project_id"],
+            "user_id": source["user_id"],
             "user_name": source["user_name"],
             "user_email": source["user_email"],
             "type": source["type"],

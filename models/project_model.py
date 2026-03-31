@@ -6,6 +6,7 @@ from typing import Optional
 class projectCreate(BaseModel) :
     project_name : str
     created_by : str
+    user_id: str
 
 
 #Api response
@@ -13,5 +14,6 @@ class projectResponse(BaseModel):
     id: int
     project_name: str
     created_by: str
+    user_id: str
     created_at: datetime
     updated_at: Optional[datetime] = None

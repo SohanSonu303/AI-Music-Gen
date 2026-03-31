@@ -62,6 +62,7 @@ class InpaintCreate(BaseModel):
 class MusicResponse(BaseModel):
     id: str  # UUID primary key
     project_id: str
+    user_id: str
     user_name: str
     user_email: str
     type: str

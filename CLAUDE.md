@@ -111,18 +111,21 @@ AI-Music-Gen/
 │   ├── project_model.py      # projectCreate, projectResponse
 │   ├── music_model.py        # MusicCreate, InpaintCreate, MusicResponse, MusicType enum
 │   ├── lyrics_model.py       # LyricsCreate, LyricsResponse
-│   └── separation_model.py   # SeparationResponse
+│   ├── separation_model.py   # SeparationResponse
+│   └── download_model.py     # DownloadTrack, DownloadResponse
 ├── routers/
 │   ├── project_router.py     # POST /projects/, GET /projects/
 │   ├── music_router.py       # POST /music/generateMusic
 │   ├── inpaint_router.py     # POST /inpaint/inpaint
 │   ├── lyrics_router.py      # POST /lyrics/generate
-│   └── separation_router.py  # POST /separate/
+│   ├── separation_router.py  # POST /separate/
+│   └── download_router.py    # GET /download/
 └── services/
     ├── project_service.py    # Supabase CRUD for projects table
     ├── music_service.py      # MusicGPT API calls, polling, Supabase Storage upload
     ├── lyrics_service.py     # MusicGPT lyrics generation, Supabase insert
-    └── separation_service.py # Demucs stem separation, local cleanup, Supabase Storage upload
+    ├── separation_service.py # Demucs stem separation, local cleanup, Supabase Storage upload
+    └── download_service.py   # Fetch both music tracks by user_id + task_id from music_metadata
 ```
 
 ---
@@ -155,6 +158,12 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 2. Builds a combined prompt by concatenating all non-null context fields (`prompt + mood + style + theme + tone`)
 3. Calls MusicGPT `GET /prompt_to_lyrics?prompt=<combined_prompt>` — synchronous, returns lyrics immediately (no polling)
 4. Inserts one row into `lyrics_metadata` with `is_lyrics=True` and generated lyrics stored in the `prompt` column
+
+**Download flow:**
+1. `GET /download/?user_id=<id>&task_id=<id>` queries `music_metadata` for all rows matching both `user_id` and `task_id`
+2. Returns both tracks (one per `conversion_id`) with their `status`, `audio_url`, `title`, `duration`, `album_cover_path`, and `generated_lyrics`
+3. `audio_url` is the Supabase Storage public URL — only populated once polling completes with `COMPLETED` status; `null` while still `IN_QUEUE`
+4. Returns 404 if no rows match; 500 on unexpected DB errors
 
 **Stem separation flow:**
 1. `POST /separate/` receives `user_id`, `project_id`, and an uploaded audio file (multipart/form-data)

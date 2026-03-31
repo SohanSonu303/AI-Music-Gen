@@ -11,6 +11,7 @@ class ProjectService:
         record = {
             "project_name": data.project_name,
             "created_by": data.created_by,
+            "user_id": data.user_id,
         }
         response = supabase.table("projects").insert(record).execute()
         logger.info("Project inserted: name=%s", data.project_name)
