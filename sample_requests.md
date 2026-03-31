@@ -410,6 +410,73 @@ curl -X GET "http://localhost:8000/download/?user_id=a1b2c3d4-e5f6-7890-abcd-ef1
 
 ---
 
+## Quick Idea Generation
+
+All requests go to `POST /prompt/quick-idea`. Required fields: `user_id`, `user_name`, `prompt`. Returns an AI-generated music concept/idea stored in the `prompt` column of `user_prompts` with `feature_type: "quick_idea"`.
+
+### Basic Idea from Short Prompt
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "a sad rainy night drive"
+}
+```
+
+### Genre-Hinted Idea
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "something dark and electronic for a thriller film"
+}
+```
+
+### Vibe-Only Idea
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "euphoric summer festival energy"
+}
+```
+
+---
+
+## Prompt Enhancer
+
+All requests go to `POST /prompt/enhance`. Required fields: `user_id`, `user_name`, `prompt`. Optional: `master_prompt` — if omitted, the system uses the default master prompt from `prompts/musicenhancerprompt.md`. Returns an enhanced, detailed prompt stored in `user_prompts` with `feature_type: "prompt_enhanced"`.
+
+### Enhance Without Master Prompt (uses default)
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "a chill lo-fi beat for studying"
+}
+```
+
+### Enhance With Custom Master Prompt
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "an epic orchestral battle theme",
+  "master_prompt": "You are a film score composer. Expand the user's prompt into a precise, production-ready music brief including tempo (BPM), key, instrumentation, dynamics arc, and reference composers."
+}
+```
+
+### Enhance a Simple Mood
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "happy upbeat morning vibes"
+}
+```
+
+---
+
 ## Type Values Reference
 
 | `type` value | Use when |

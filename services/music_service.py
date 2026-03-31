@@ -47,6 +47,8 @@ class MusicService:
                 json=payload,
                 headers=headers,
             )
+        if not response.is_success:
+            logger.error("MusicGPT /MusicAI error %s: %s", response.status_code, response.text)
         response.raise_for_status()
         result = response.json()
         logger.info(
