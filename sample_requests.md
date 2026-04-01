@@ -418,3 +418,46 @@ curl -X GET "http://localhost:8000/download/?user_id=a1b2c3d4-e5f6-7890-abcd-ef1
 | `vocal` | Isolated vocals / voiceover only |
 | `sfx` | Sound effects |
 | `stem` | Individual stems (drums, bass, melody, etc.) |
+
+---
+
+## Sound Generation
+
+All requests go to `POST /sound_generator/`. Only `project_id`, `user_id`, `user_name`, `user_email`, and `prompt` are required. The service stores one `music_metadata` row with `type = sfx` and processes the file asynchronously in the background.
+
+### Temple Door Creak
+```json
+{
+  "project_id": "proj_sfx_001",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "hemanth",
+  "user_email": "hemanth@example.com",
+  "prompt": "sound of an ancient temple door creaking open",
+  "audio_length": 20
+}
+```
+
+### Ambient Forest Night
+```json
+{
+  "project_id": "proj_sfx_002",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "hemanth",
+  "user_email": "hemanth@example.com",
+  "prompt": "quiet nighttime forest ambience with insects, distant wind, and soft leaves rustling",
+  "audio_length": 30
+}
+```
+
+### With Webhook URL
+```json
+{
+  "project_id": "proj_sfx_003",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "hemanth",
+  "user_email": "hemanth@example.com",
+  "prompt": "short sci-fi interface beep with a holographic feel",
+  "webhook_url": "https://abcd.requestcatcher.com/",
+  "audio_length": 5
+}
+```

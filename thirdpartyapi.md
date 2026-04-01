@@ -126,6 +126,43 @@ The response always contains the full task object with both conversions. Match `
 2. Poll `GET /byId` every 5s (max 120s) until `status` is `COMPLETED`, `ERROR`, or `FAILED`
 3. On `COMPLETED`, match your `conversion_id` to `conversion_id_1` or `conversion_id_2` in the response, then download from the corresponding `conversion_path_1` or `conversion_path_2`
 
+## Sound Generator
+
+**`POST /sound_generator`**
+
+Submits a sound-effect generation job. The request is asynchronous and returns a single `conversion_id`.
+
+### Request body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `prompt` | string | yes | Text description of the sound effect to generate |
+| `webhook_url` | string | no | Callback URL for completion events |
+| `audio_length` | int | no | Target sound duration in seconds |
+
+### Response
+
+```json
+{
+  "success": true,
+  "task_id": "soundgen789",
+  "conversion_id": "conv456",
+  "eta": -1,
+  "credit_estimate": 100.1,
+  "message": "Successfully published to queue"
+}
+```
+
+### Polling
+
+Poll `GET /byId` with `conversionType=SOUND_GENERATOR`:
+
+```
+GET /byId?conversionType=SOUND_GENERATOR&task_id=<task_id>&conversion_id=<conversion_id>
+```
+
+Expected completed fields include `conversion_path`, optional `conversion_path_wav`, and `conversion_duration`.
+
 
 ## Inpaint
 

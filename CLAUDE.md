@@ -119,13 +119,15 @@ AI-Music-Gen/
 │   ├── inpaint_router.py     # POST /inpaint/inpaint
 │   ├── lyrics_router.py      # POST /lyrics/generate
 │   ├── separation_router.py  # POST /separate/
-│   └── download_router.py    # GET /download/
+│   ├── download_router.py    # GET /download/
+│   └── sound_router.py       # POST /sound_generator/
 └── services/
     ├── project_service.py    # Supabase CRUD for projects table
     ├── music_service.py      # MusicGPT API calls, polling, Supabase Storage upload
     ├── lyrics_service.py     # MusicGPT lyrics generation, Supabase insert
     ├── separation_service.py # Demucs stem separation, local cleanup, Supabase Storage upload
-    └── download_service.py   # Fetch both music tracks by user_id + task_id from music_metadata
+    ├── download_service.py   # Fetch generated audio assets by user_id + task_id from music_metadata
+    └── sound_service.py      # MusicGPT SFX calls, polling, Supabase Storage upload
 ```
 
 ---
@@ -145,6 +147,11 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 1. `POST /music/generateMusic` calls MusicGPT `POST /MusicAI`, inserts 2 rows into `music_metadata` (one per `conversion_id`), returns immediately
 2. Two `BackgroundTask`s poll MusicGPT `GET /byId` (`conversionType=MUSIC_AI`) every 5s independently (max 120s before marking `FAILED`)
 3. On `COMPLETED`: downloads MP3, uploads to Supabase Storage at `{BUCKET_NAME}/{user_id}/{task_id}/{conversion_id}.mp3`, updates metadata row with storage URL, title, duration, and generated lyrics
+
+**Sound generation flow:**
+1. `POST /sound_generator/` calls MusicGPT `POST /sound_generator`, inserts 1 row into `music_metadata` with `type='sfx'`, returns immediately
+2. One `BackgroundTask` polls MusicGPT `GET /byId` (`conversionType=SOUND_GENERATOR`) every 5s independently
+3. On `COMPLETED`: downloads the generated audio, uploads it to Supabase Storage at `{BUCKET_NAME}/{user_id}/{task_id}/{conversion_id}.mp3` or `.wav`, and updates the metadata row with the storage URL and duration
 
 **Inpaint flow:**
 1. `POST /inpaint/inpaint` receives `id` (source `music_metadata` UUID) + inpaint params
