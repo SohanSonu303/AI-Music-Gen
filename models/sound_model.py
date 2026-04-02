@@ -13,6 +13,18 @@ class SoundCreate(BaseModel):
     webhook_url: Optional[str] = None
     audio_length: Optional[int] = Field(default=None, ge=1)
 
+    @field_validator("user_id", mode="before")
+    @classmethod
+    def validate_user_id(cls, value):
+        if value is None:
+            raise ValueError("user_id must not be null or empty")
+        if not isinstance(value, str):
+            raise ValueError("user_id must be a string")
+        cleaned_value = value.strip()
+        if not cleaned_value:
+            raise ValueError("user_id must not be null or empty")
+        return cleaned_value
+
     @field_validator("webhook_url", mode="before")
     @classmethod
     def empty_str_to_none(cls, value):
@@ -22,18 +34,15 @@ class SoundCreate(BaseModel):
 
 
 class SoundResponse(BaseModel):
-    id: str
+    id: Optional[int] = None
     project_id: str
     user_id: str
     user_name: str
-    user_email: str
     type: str
     task_id: str
     conversion_id: str
     status: str
-    prompt: Optional[str] = None
-    title: Optional[str] = None
-    duration: Optional[float] = None
     audio_url: Optional[str] = None
-    created_at: datetime
+    error_message: Optional[str] = None
+    created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

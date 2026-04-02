@@ -76,6 +76,7 @@ SUPABASE_URL=...
 SUPABASE_KEY=...
 MUSICGPT_API_KEY=...
 BUCKET_NAME=music-generated
+SFX_BUCKET_NAME=sfx
 ```
 
 ---
@@ -120,7 +121,7 @@ AI-Music-Gen/
 │   ├── lyrics_router.py      # POST /lyrics/generate
 │   ├── separation_router.py  # POST /separate/
 │   ├── download_router.py    # GET /download/
-│   └── sound_router.py       # POST /sound_generator/
+│   └── sound_router.py       # POST /sound_generator/, GET /sound_generator/, GET /sound_generator/status
 └── services/
     ├── project_service.py    # Supabase CRUD for projects table
     ├── music_service.py      # MusicGPT API calls, polling, Supabase Storage upload
@@ -149,9 +150,11 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 3. On `COMPLETED`: downloads MP3, uploads to Supabase Storage at `{BUCKET_NAME}/{user_id}/{task_id}/{conversion_id}.mp3`, updates metadata row with storage URL, title, duration, and generated lyrics
 
 **Sound generation flow:**
-1. `POST /sound_generator/` calls MusicGPT `POST /sound_generator`, inserts 1 row into `music_metadata` with `type='sfx'`, returns immediately
+1. `POST /sound_generator/` validates `user_id`, calls MusicGPT `POST /sound_generator`, inserts 1 row into `sound_generations` with `type='sfx'`, returns immediately
 2. One `BackgroundTask` polls MusicGPT `GET /byId` (`conversionType=SOUND_GENERATOR`) every 5s independently
-3. On `COMPLETED`: downloads the generated audio, uploads it to Supabase Storage at `{BUCKET_NAME}/{user_id}/{task_id}/{conversion_id}.mp3` or `.wav`, and updates the metadata row with the storage URL and duration
+3. On `COMPLETED`: downloads the generated audio, uploads it to Supabase Storage at `{SFX_BUCKET_NAME}/{user_id}/{task_id}/{conversion_id}.mp3` or `.wav`, and updates the `sound_generations` row with the public storage URL
+4. `GET /sound_generator/?user_id=<id>&task_id=<id>` fetches the persisted SFX row from `sound_generations`
+5. `GET /sound_generator/status?user_id=<id>&task_id=<id>` returns a debug payload (`is_completed`, `has_audio`, `ready_for_download`, and `error_message`) for quick troubleshooting
 
 **Inpaint flow:**
 1. `POST /inpaint/inpaint` receives `id` (source `music_metadata` UUID) + inpaint params
@@ -203,3 +206,8 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 `id` (UUID), `user_id` (UUID), `project_id` (text), `original_filename` (text),
 `status` (PENDING/IN_PROGRESS/COMPLETED/FAILED), `vocals_url`, `drums_url`, `bass_url`, `other_url`,
 `error_message` (nullable), `created_at`
+
+
+**`sound_generations` table**
+`user_id`, `created_at`, `user_name`, `task_id`, `project_id`, `audio_url`, `type`,
+`status`, `updated_at`, `error_message`, `conversion_id`

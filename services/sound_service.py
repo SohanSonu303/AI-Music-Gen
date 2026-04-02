@@ -12,7 +12,12 @@ logger = logging.getLogger(__name__)
 
 MUSICGPT_BASE_URL = "https://api.musicgpt.com/api/public/v1"
 MUSICGPT_API_KEY = os.environ.get("MUSICGPT_API_KEY")
-BUCKET_NAME = os.environ.get("BUCKET_NAME", "music-generated")
+SFX_BUCKET_NAME = os.environ.get("SFX_BUCKET_NAME", "sfx")
+SOUND_GENERATIONS_TABLE = "sound_generations"
+SOUND_GENERATION_SELECT_FIELDS = (
+    "project_id, user_id, user_name, type, task_id, conversion_id, "
+    "status, audio_url, error_message, created_at, updated_at"
+)
 
 POLL_INTERVAL_SECONDS = 5
 MAX_POLL_DURATION_SECONDS = 300
@@ -23,7 +28,30 @@ SOUND_CONVERSION_TYPE = "SOUND_GENERATOR"
 
 class SoundService:
     @staticmethod
+    def get_sound_generation(user_id: str, task_id: str) -> dict:
+        logger.info("Fetching sound generation: user_id=%s task_id=%s", user_id, task_id)
+
+        response = (
+            supabase.table(SOUND_GENERATIONS_TABLE)
+            .select(SOUND_GENERATION_SELECT_FIELDS)
+            .eq("user_id", user_id)
+            .eq("task_id", task_id)
+            .single()
+            .execute()
+        )
+
+        row = response.data
+        if not row:
+            raise ValueError(f"No sound generation found for user_id={user_id} task_id={task_id}")
+
+        logger.info("Fetched sound generation for task_id=%s", task_id)
+        return row
+
+    @staticmethod
     async def create_sound(data: SoundCreate) -> dict:
+        if not data.user_id or not data.user_id.strip():
+            raise ValueError("user_id must not be null or empty")
+
         payload = {"prompt": data.prompt}
         if data.webhook_url:
             payload["webhook_url"] = data.webhook_url
@@ -32,7 +60,7 @@ class SoundService:
 
         headers = {"Authorization": MUSICGPT_API_KEY}
 
-        logger.info("Calling MusicGPT /SoundGenerator: project_id=%s", data.project_id)
+        logger.info("Calling MusicGPT /sound_generator: project_id=%s", data.project_id)
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
             response = await SoundService._submit_sound_request(client, headers, payload)
         response.raise_for_status()
@@ -48,16 +76,16 @@ class SoundService:
             "project_id": data.project_id,
             "user_id": data.user_id,
             "user_name": data.user_name,
-            "user_email": data.user_email,
             "type": "sfx",
             "task_id": result["task_id"],
             "conversion_id": result["conversion_id"],
             "status": "IN_QUEUE",
-            "prompt": data.prompt,
+            "audio_url": None,
+            "error_message": None,
         }
 
-        db_response = supabase.table("music_metadata").insert(record).execute()
-        logger.info("Inserted sound metadata row for task_id=%s", result["task_id"])
+        db_response = supabase.table(SOUND_GENERATIONS_TABLE).insert(record).execute()
+        logger.info("Inserted sound_generations row for task_id=%s", result["task_id"])
         return db_response.data[0]
 
     @staticmethod
@@ -106,12 +134,13 @@ class SoundService:
                         elapsed += POLL_INTERVAL_SECONDS
                         continue
 
-                    update_payload = {"status": status}
+                    update_payload = {
+                        "status": status,
+                        "error_message": None,
+                    }
 
                     if status == "COMPLETED":
                         audio_source_url = conversion.get("conversion_path")
-                        duration = conversion.get("conversion_duration")
-                        title = conversion.get("title")
 
                         if not audio_source_url:
                             raise ValueError(
@@ -119,9 +148,8 @@ class SoundService:
                             )
 
                         logger.info(
-                            "Downloading sound asset: conversion_id=%s duration=%.1fs",
+                            "Downloading sound asset: conversion_id=%s",
                             conversion_id,
-                            duration or 0,
                         )
                         audio_response = await client.get(audio_source_url)
                         audio_response.raise_for_status()
@@ -129,20 +157,19 @@ class SoundService:
                         file_extension = SoundService._get_file_extension(audio_source_url)
                         content_type = SoundService._get_content_type(file_extension)
                         file_path = f"{user_id}/{task_id}/{conversion_id}.{file_extension}"
-                        supabase.storage.from_(BUCKET_NAME).upload(
+                        supabase.storage.from_(SFX_BUCKET_NAME).upload(
                             file_path,
                             audio_response.content,
                             {"content-type": content_type},
                         )
                         logger.info("Uploaded sound asset to storage: path=%s", file_path)
 
-                        storage_url = supabase.storage.from_(BUCKET_NAME).get_public_url(file_path)
+                        storage_url = supabase.storage.from_(SFX_BUCKET_NAME).get_public_url(file_path)
                         update_payload["audio_url"] = storage_url
-                        update_payload["duration"] = duration
-                        if title:
-                            update_payload["title"] = title
+                    else:
+                        update_payload["error_message"] = conversion.get("message") or "Sound generation failed"
 
-                    supabase.table("music_metadata").update(update_payload).eq(
+                    supabase.table(SOUND_GENERATIONS_TABLE).update(update_payload).eq(
                         "task_id",
                         task_id,
                     ).eq("conversion_id", conversion_id).execute()
@@ -160,7 +187,12 @@ class SoundService:
                     task_id,
                     conversion_id,
                 )
-                supabase.table("music_metadata").update({"status": "FAILED"}).eq(
+                supabase.table(SOUND_GENERATIONS_TABLE).update(
+                    {
+                        "status": "FAILED",
+                        "error_message": f"Polling timed out after {MAX_POLL_DURATION_SECONDS} seconds",
+                    }
+                ).eq(
                     "task_id",
                     task_id,
                 ).eq("conversion_id", conversion_id).execute()
@@ -172,7 +204,12 @@ class SoundService:
                 conversion_id,
                 e,
             )
-            supabase.table("music_metadata").update({"status": "FAILED"}).eq(
+            supabase.table(SOUND_GENERATIONS_TABLE).update(
+                {
+                    "status": "FAILED",
+                    "error_message": str(e),
+                }
+            ).eq(
                 "task_id",
                 task_id,
             ).eq("conversion_id", conversion_id).execute()

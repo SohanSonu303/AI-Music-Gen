@@ -423,7 +423,8 @@ curl -X GET "http://localhost:8000/download/?user_id=a1b2c3d4-e5f6-7890-abcd-ef1
 
 ## Sound Generation
 
-All requests go to `POST /sound_generator/`. Only `project_id`, `user_id`, `user_name`, `user_email`, and `prompt` are required. The service stores one `music_metadata` row with `type = sfx` and processes the file asynchronously in the background.
+All requests go to `POST /sound_generator/`. Only `project_id`, `user_id`, `user_name`, `user_email`, and `prompt` are required. The service stores one `sound_generations` row with `type = sfx`, uploads the finished asset into the `sfx` Supabase bucket, and processes the file asynchronously in the background. Fetch the persisted SFX row with `GET /sound_generator/?user_id=<id>&task_id=<id>`
+
 
 ### Temple Door Creak
 ```json
@@ -459,5 +460,52 @@ All requests go to `POST /sound_generator/`. Only `project_id`, `user_id`, `user
   "prompt": "short sci-fi interface beep with a holographic feel",
   "webhook_url": "https://abcd.requestcatcher.com/",
   "audio_length": 5
+}
+```
+
+### Fetch Generated Sound
+```bash
+curl -X GET "http://localhost:8000/sound_generator/?user_id=a1b2c3d4-e5f6-7890-abcd-ef1234567890&task_id=<task_id>"
+```
+
+### Debug Sound Status
+```bash
+curl -X GET "http://localhost:8000/sound_generator/status?user_id=a1b2c3d4-e5f6-7890-abcd-ef1234567890&task_id=<task_id>"
+```
+
+### Expected Response
+```json
+{
+  "project_id": "proj_sfx_001",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "type": "sfx",
+  "task_id": "soundgen789",
+  "conversion_id": "conv456",
+  "status": "COMPLETED",
+  "audio_url": "https://<supabase>/storage/v1/object/public/sfx/a1b2c3d4-e5f6-7890-abcd-ef1234567890/soundgen789/conv456.mp3",
+  "error_message": null,
+  "created_at": "2026-04-02T10:00:00Z",
+  "updated_at": "2026-04-02T10:01:00Z"
+}
+```
+
+### Debug Status Response
+```json
+{
+  "success": true,
+  "source_table": "sound_generations",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "task_id": "soundgen789",
+  "conversion_id": "conv456",
+  "project_id": "proj_sfx_001",
+  "status": "COMPLETED",
+  "audio_url": "https://<supabase>/storage/v1/object/public/sfx/a1b2c3d4-e5f6-7890-abcd-ef1234567890/soundgen789/conv456.mp3",
+  "error_message": null,
+  "is_completed": true,
+  "has_audio": true,
+  "ready_for_download": true,
+  "created_at": "2026-04-02T10:00:00Z",
+  "updated_at": "2026-04-02T10:01:00Z"
 }
 ```
