@@ -11,6 +11,11 @@ router = APIRouter(prefix="/music", tags=["Music"])
 
 @router.post("/generateMusic", response_model=List[MusicResponse])
 async def create_music(music: MusicCreate, background_tasks: BackgroundTasks):
+    if len(music.prompt) > 280:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Prompt must be 280 characters or fewer (got {len(music.prompt)}). Keep it concise and descriptive.",
+        )
     logger.info(
         "Music generation request: project_id=%s type=%s prompt=%.80s",
         music.project_id, music.type, music.prompt,

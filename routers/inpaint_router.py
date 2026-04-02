@@ -11,6 +11,11 @@ router = APIRouter(prefix="/inpaint", tags=["Inpaint"])
 
 @router.post("/inpaint", response_model=List[MusicResponse])
 async def inpaint_music(inpaint: InpaintCreate, background_tasks: BackgroundTasks):
+    if len(inpaint.prompt) > 280:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Prompt must be 280 characters or fewer (got {len(inpaint.prompt)}). Keep it concise and descriptive.",
+        )
     logger.info(
         "Inpaint request: source_id=%s replace=%.1f-%.1fs",
         inpaint.id, inpaint.replace_start_at, inpaint.replace_end_at,
