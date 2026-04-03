@@ -1,8 +1,11 @@
 import os
+import tempfile
 import logging
 import asyncio
 import httpx
 from models.music_model import MusicCreate, InpaintCreate
+from models.extend_model import ExtendCreate
+from models.remix_model import RemixCreate
 from supabase_client import supabase
 
 logger = logging.getLogger(__name__)
@@ -47,6 +50,8 @@ class MusicService:
                 json=payload,
                 headers=headers,
             )
+        if not response.is_success:
+            logger.error("MusicGPT /MusicAI error %s: %s", response.status_code, response.text)
         response.raise_for_status()
         result = response.json()
         logger.info(
@@ -84,19 +89,19 @@ class MusicService:
         if not source:
             raise ValueError(f"music_metadata row not found: id={data.id}")
 
-        payload = {
+        form_data = {
+            "audio_url": data.audio_url,
             "prompt": data.prompt,
             "replace_start_at": data.replace_start_at,
             "replace_end_at": data.replace_end_at,
-            "audio_url": data.audio_url,
             "num_outputs": data.num_outputs,
         }
         if data.lyrics:
-            payload["lyrics"] = data.lyrics
+            form_data["lyrics"] = data.lyrics
         if data.lyrics_section_to_replace:
-            payload["lyrics_section_to_replace"] = data.lyrics_section_to_replace
+            form_data["lyrics_section_to_replace"] = data.lyrics_section_to_replace
         if data.gender:
-            payload["gender"] = data.gender
+            form_data["gender"] = data.gender
 
         headers = {"Authorization": MUSICGPT_API_KEY}
 
@@ -104,12 +109,13 @@ class MusicService:
             "Calling MusicGPT /inpaint: source_id=%s replace=%.1f-%.1fs",
             data.id, data.replace_start_at, data.replace_end_at,
         )
-        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
             response = await client.post(
                 f"{MUSICGPT_BASE_URL}/inpaint",
                 headers=headers,
-                data=payload,  # multipart/form-data per API spec
+                data=form_data,
             )
+
         response.raise_for_status()
         result = response.json()
         logger.info(
@@ -139,6 +145,161 @@ class MusicService:
         logger.info(
             "Inserted %d inpaint music_metadata rows for task_id=%s (num_outputs=%d)",
             len(db_response.data), result["task_id"], data.num_outputs,
+        )
+        return db_response.data
+
+    @staticmethod
+    async def extend_music(data: ExtendCreate) -> list[dict]:
+        # Fetch the source record to copy project/user metadata and audio details
+        source_resp = supabase.table("music_metadata").select("*").eq("id", str(data.id)).single().execute()
+        source = source_resp.data
+        if not source:
+            raise ValueError(f"music_metadata row not found: id={data.id}")
+
+        combined_prompt = " ".join(filter(None, [source.get("prompt"), source.get("music_style")]))[:280]
+        extend_after = source.get("duration")
+        if extend_after is None:
+            raise ValueError(f"Source row has no duration stored: id={data.id}")
+
+        form_data = {
+            "audio_url": source["audio_url"],
+            "prompt": combined_prompt,
+            "extend_after": extend_after,
+            "num_outputs": 2,
+        }
+
+        headers = {"Authorization": MUSICGPT_API_KEY}
+
+        logger.info(
+            "Calling MusicGPT /extend: source_id=%s extend_after=%.1fs",
+            data.id, extend_after,
+        )
+        async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
+            response = await client.post(
+                f"{MUSICGPT_BASE_URL}/extend",
+                headers=headers,
+                data=form_data,
+            )
+
+        if not response.is_success:
+            logger.error("MusicGPT /extend error %s: %s", response.status_code, response.text)
+        response.raise_for_status()
+        result = response.json()
+        logger.info(
+            "MusicGPT extend job queued: task_id=%s conversion_id_1=%s conversion_id_2=%s eta=%ss",
+            result["task_id"], result["conversion_id_1"], result["conversion_id_2"], result.get("eta"),
+        )
+
+        base_record = {
+            "project_id": source["project_id"],
+            "user_id": source["user_id"],
+            "user_name": source["user_name"],
+            "user_email": source["user_email"],
+            "type": source["type"],
+            "task_id": result["task_id"],
+            "status": "IN_QUEUE",
+            "prompt": combined_prompt,
+            "music_style": source.get("music_style"),
+            "is_cloned": str(data.id),  # reference back to the source row
+        }
+
+        records = [{**base_record, "conversion_id": result["conversion_id_1"]}]
+        conv_id_2 = result.get("conversion_id_2", "")
+        if conv_id_2 and conv_id_2 != "single_song_generation_request":
+            records.append({**base_record, "conversion_id": conv_id_2})
+
+        db_response = supabase.table("music_metadata").insert(records).execute()
+        logger.info(
+            "Inserted %d extend music_metadata rows for task_id=%s",
+            len(db_response.data), result["task_id"],
+        )
+        return db_response.data
+
+    @staticmethod
+    async def remix_music(data: RemixCreate) -> list[dict]:
+        # Fetch the source record to copy project/user metadata, audio_url, and prompt
+        source_resp = supabase.table("music_metadata").select("*").eq("id", str(data.id)).single().execute()
+        source = source_resp.data
+        if not source:
+            raise ValueError(f"music_metadata row not found: id={data.id}")
+
+        if not source.get("audio_url"):
+            raise ValueError(f"Source row has no audio_url yet (still processing?): id={data.id}")
+
+        remix_prompt = data.prompt if data.prompt else source.get("prompt")
+
+        form_data = {"prompt": remix_prompt}
+        if data.lyrics:
+            form_data["lyrics"] = data.lyrics
+        if data.gender:
+            form_data["gender"] = data.gender
+
+        headers = {"Authorization": MUSICGPT_API_KEY}
+
+        # Download the source audio file to a temp file
+        logger.info(
+            "Downloading source audio for remix: source_id=%s url=%s",
+            data.id, source["audio_url"],
+        )
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=120.0)) as client:
+            audio_resp = await client.get(source["audio_url"])
+            audio_resp.raise_for_status()
+
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+            tmp.write(audio_resp.content)
+            tmp_path = tmp.name
+        logger.info("Audio downloaded to temp file: path=%s size=%d bytes", tmp_path, len(audio_resp.content))
+
+        try:
+            logger.info(
+                "Calling MusicGPT /Remix (file upload): source_id=%s prompt=%.80s prompt_source=%s lyrics_provided=%s gender=%s",
+                data.id, remix_prompt,
+                "user" if data.prompt else "source_row",
+                data.lyrics is not None, data.gender,
+            )
+            async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as client:
+                with open(tmp_path, "rb") as f:
+                    response = await client.post(
+                        f"{MUSICGPT_BASE_URL}/Remix",
+                        headers=headers,
+                        data=form_data,
+                        files={"audio_file": ("audio.mp3", f, "audio/mpeg")},
+                    )
+        finally:
+            os.remove(tmp_path)
+            logger.info("Removed temp audio file: path=%s", tmp_path)
+
+        if not response.is_success:
+            logger.error("MusicGPT /Remix error %s: %s", response.status_code, response.text)
+        response.raise_for_status()
+        result = response.json()
+        logger.info(
+            "MusicGPT remix job queued: task_id=%s conversion_id_1=%s conversion_id_2=%s eta=%ss",
+            result["task_id"], result["conversion_id_1"], result["conversion_id_2"], result.get("eta"),
+        )
+
+        base_record = {
+            "project_id": source["project_id"],
+            "user_id": source["user_id"],
+            "user_name": source["user_name"],
+            "user_email": source["user_email"],
+            "type": source["type"],
+            "task_id": result["task_id"],
+            "status": "IN_QUEUE",
+            "prompt": remix_prompt,
+            "music_style": source.get("music_style"),
+            "is_cloned": str(data.id),  # reference back to the source row
+        }
+
+        records = [
+            {**base_record, "conversion_id": result["conversion_id_1"]},
+            {**base_record, "conversion_id": result["conversion_id_2"]},
+        ]
+
+        db_response = supabase.table("music_metadata").insert(records).execute()
+        logger.info(
+            "Inserted %d remix music_metadata rows for task_id=%s",
+            len(db_response.data), result["task_id"],
         )
         return db_response.data
 

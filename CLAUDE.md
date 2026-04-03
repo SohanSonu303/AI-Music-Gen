@@ -2,134 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
----
-
-## Installation & Setup
-
-### Step 1 — Prerequisites
-
-Install system dependencies before anything else.
-
-**Python 3.12**
-```bash
-# macOS (Homebrew)
-brew install python@3.12
-
-# Ubuntu/Debian
-sudo apt-get install python3.12 python3.12-venv
-```
-
-**ffmpeg** (required for stem separation audio conversion)
-```bash
-# macOS
-brew install ffmpeg
-
-# Ubuntu/Debian
-sudo apt-get install ffmpeg
-
-# Verify
-ffmpeg -version
-```
-
----
-
-### Step 2 — Clone the repository
-
-```bash
-git clone <repo-url>
-cd AI-Music-Gen
-```
-
----
-
-### Step 3 — Install Python dependencies
-
-**Option A — uv (recommended)**
-```bash
-# Install uv if not already installed
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install all dependencies into .venv
-uv sync
-
-# Activate the virtual environment
-source .venv/bin/activate        # Mac/Linux
-# .venv\Scripts\activate         # Windows
-```
-
-**Option B — pip fallback**
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate        # Mac/Linux
-# .venv\Scripts\activate         # Windows
-
-pip install -r requirements.txt
-```
-
----
-
-### Step 4 — Environment variables
-
-Create a `.env` file in the project root:
-```
-SUPABASE_URL=...
-SUPABASE_KEY=...
-MUSICGPT_API_KEY=...
-BUCKET_NAME=music-generated
-SFX_BUCKET_NAME=sfx
-```
-
----
-
-### Step 5 — Run the server
-
-```bash
-# With uv (no manual activation needed)
-uv run uvicorn main:app --reload
-
-# With activated venv
-uvicorn main:app --reload
-```
-
-Server starts at `http://localhost:8000`
-Interactive API docs at `http://localhost:8000/docs`
-
----
-
-## Folder Structure
-
-```
-AI-Music-Gen/
-├── main.py                   # FastAPI app entry point, registers all routers
-├── supabase_client.py        # Supabase singleton client
-├── pyproject.toml            # Project metadata and dependencies (uv)
-├── requirements.txt          # pip-compatible dependency list
-├── .env                      # Environment variables (gitignored)
-├── .python-version           # Pins Python 3.12
-├── thirdpartyapi.md          # MusicGPT API reference
-├── sample_requests.md        # Example request bodies for different music styles
-├── models/
-│   ├── project_model.py      # projectCreate, projectResponse
-│   ├── music_model.py        # MusicCreate, InpaintCreate, MusicResponse, MusicType enum
-│   ├── lyrics_model.py       # LyricsCreate, LyricsResponse
-│   ├── separation_model.py   # SeparationResponse
-│   └── download_model.py     # DownloadTrack, DownloadResponse
-├── routers/
-│   ├── project_router.py     # POST /projects/, GET /projects/
-│   ├── music_router.py       # POST /music/generateMusic
-│   ├── inpaint_router.py     # POST /inpaint/inpaint
-│   ├── lyrics_router.py      # POST /lyrics/generate
-│   ├── separation_router.py  # POST /separate/
-│   ├── download_router.py    # GET /download/
-│   └── sound_router.py       # POST /sound_generator/, GET /sound_generator/, GET /sound_generator/status
-└── services/
-    ├── project_service.py    # Supabase CRUD for projects table
-    ├── music_service.py      # MusicGPT API calls, polling, Supabase Storage upload
-    ├── lyrics_service.py     # MusicGPT lyrics generation, Supabase insert
-    ├── separation_service.py # Demucs stem separation, local cleanup, Supabase Storage upload
-    ├── download_service.py   # Fetch generated audio assets by user_id + task_id from music_metadata
-    └── sound_service.py      # MusicGPT SFX calls, polling, Supabase Storage upload
-```
+For installation, setup, and folder structure see [README.md](README.md).
 
 ---
 
@@ -157,11 +30,12 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 5. `GET /sound_generator/status?user_id=<id>&task_id=<id>` returns a debug payload (`is_completed`, `has_audio`, `ready_for_download`, and `error_message`) for quick troubleshooting
 
 **Inpaint flow:**
-1. `POST /inpaint/inpaint` receives `id` (source `music_metadata` UUID) + inpaint params
+1. `POST /inpaint/inpaint` receives `id` (source `music_metadata` UUID) + inpaint params (including `audio_url`)
 2. Fetches the source row to copy `project_id`, `user_name`, `user_email`, `type`
-3. Calls MusicGPT `POST /inpaint` (multipart/form-data), inserts 2 new rows with `is_cloned = <source_id>`, returns immediately
-4. Two `BackgroundTask`s poll MusicGPT `GET /byId` (`conversionType=INPAINT`) every 5s (same timeout as music generation)
-5. On `COMPLETED`: same download + Supabase Storage upload as music generation, stored at `{BUCKET_NAME}/{user_id}/{task_id}/{conversion_id}.mp3`
+3. Calls MusicGPT `POST /inpaint` as `multipart/form-data` with `audio_url` passed as a string field (no file download); deletes no temp file
+4. Inserts 2 new rows with `is_cloned = <source_id>`, returns immediately
+5. Two `BackgroundTask`s poll MusicGPT `GET /byId` (`conversionType=INPAINT`) every 5s (same timeout as music generation)
+6. On `COMPLETED`: same download + Supabase Storage upload as music generation, stored at `{BUCKET_NAME}/{user_id}/{task_id}/{conversion_id}.mp3`
 
 **Lyrics generation flow:**
 1. `POST /lyrics/generate` receives `user_id`, `user_name`, `prompt`, and optional `style`, `mood`, `theme`, `tone`
@@ -174,6 +48,36 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 2. Returns both tracks (one per `conversion_id`) with their `status`, `audio_url`, `title`, `duration`, `album_cover_path`, and `generated_lyrics`
 3. `audio_url` is the Supabase Storage public URL — only populated once polling completes with `COMPLETED` status; `null` while still `IN_QUEUE`
 4. Returns 404 if no rows match; 500 on unexpected DB errors
+
+**Quick idea generation flow:**
+1. `POST /prompt/quick-idea` receives `user_id`, `user_name`, `prompt` (max 280 chars)
+2. Calls OpenRouter API (`deepseek/deepseek-v3.2`) with a built-in system prompt instructing it to generate a concise music concept (mood, genre, tempo, hook) in ≤280 characters
+3. Inserts one row into `user_prompts` with `is_lyrics=False`, `feature_type="quick_idea"`, and AI output stored in `prompt`
+
+**Prompt enhancer flow:**
+1. `POST /prompt/enhance` receives `user_id`, `user_name`, `prompt` (max 280 chars), and optional `master_prompt`
+2. System prompt = user-provided `master_prompt` if given, otherwise loaded from `prompts/musicenhancerprompt.md`; the 280-char output constraint is always appended in code
+3. Calls OpenRouter API (`deepseek/deepseek-v3.2`) to produce a rich, production-ready enhanced prompt
+4. Inserts one row into `user_prompts` with `is_lyrics=False`, `feature_type="prompt_enhanced"`, and AI output stored in `prompt`
+
+**Extend flow:**
+1. `POST /extend/extend` receives `id` (source `music_metadata` UUID)
+2. Fetches the source row — copies metadata, uses `prompt + music_style` as the combined prompt (truncated to 280 chars), `duration` as `extend_after`
+3. Calls MusicGPT `POST /extend` as `multipart/form-data` with `audio_url` passed as a string field (no file download)
+4. Inserts up to 2 new rows with `is_cloned = <source_id>`, returns immediately
+5. Background poll tasks use `conversionType=EXTEND`; on `COMPLETED`: same download + Supabase Storage upload pattern
+
+**Remix flow:**
+1. `POST /music/remix` receives `id` (source `music_metadata` UUID), optional `prompt` (remix style description), optional `lyrics`, optional `gender`
+2. Fetches the source row — if no `prompt` provided, falls back to `source["prompt"]`; validates `source["audio_url"]` is not null
+3. Downloads audio from `source["audio_url"]` to a temp file, calls MusicGPT `POST /Remix` with `audio_file` upload (multipart/form-data), deletes temp file after call
+4. Inserts 2 new rows with `is_cloned = <source_id>`, returns immediately
+5. Two `BackgroundTask`s poll MusicGPT `GET /byId` (`conversionType=REMIX`) every 5s
+6. On `COMPLETED`: same download + Supabase Storage upload as music generation
+
+**Prompt validation (all generation endpoints):**
+- `POST /music/generateMusic`, `POST /inpaint/inpaint`, `POST /prompt/quick-idea`, `POST /prompt/enhance` all return `422` if the input `prompt` exceeds 280 characters (MusicGPT limit)
+- `music_service.py` also flattens multi-line prompts (joins `\n` with spaces) before sending to MusicGPT
 
 **Stem separation flow:**
 1. `POST /separate/` receives `user_id`, `project_id`, and an uploaded audio file (multipart/form-data)
@@ -197,10 +101,11 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 `generated_lyrics`, `is_cloned` (UUID, nullable — source row id when created via inpaint),
 `created_at`, `updated_at`
 
-**`lyrics_metadata` table**
-`id` (bigint), `user_id` (uuid), `user_name`, `prompt` (stores generated lyrics output),
-`is_lyrics` (bool, always `true` for this flow), `style`, `mood`, `theme`, `tone`,
-`created_at`
+**`user_prompts` table** (referenced in code as `lyrics_metadata`)
+`id` (bigint), `user_id` (uuid), `user_name`, `prompt` (stores generated output — lyrics, idea, or enhanced prompt),
+`is_lyrics` (bool — `true` for lyrics, `false` for quick idea / prompt enhanced),
+`feature_type` (text, nullable — `null` for lyrics rows, `"quick_idea"` or `"prompt_enhanced"` for prompt feature rows),
+`style`, `mood`, `theme`, `tone`, `created_at`
 
 **`audio_separations` table**
 `id` (UUID), `user_id` (UUID), `project_id` (text), `original_filename` (text),

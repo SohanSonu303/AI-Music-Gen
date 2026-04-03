@@ -2,6 +2,7 @@ import logging
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from typing import List
 from models.music_model import MusicCreate, MusicResponse
+from models.remix_model import RemixCreate
 from services.music_service import MusicService
 
 logger = logging.getLogger(__name__)
@@ -11,6 +12,11 @@ router = APIRouter(prefix="/music", tags=["Music"])
 
 @router.post("/generateMusic", response_model=List[MusicResponse])
 async def create_music(music: MusicCreate, background_tasks: BackgroundTasks):
+    if len(music.prompt) > 280:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Prompt must be 280 characters or fewer (got {len(music.prompt)}). Keep it concise and descriptive.",
+        )
     logger.info(
         "Music generation request: project_id=%s type=%s prompt=%.80s",
         music.project_id, music.type, music.prompt,
@@ -32,4 +38,33 @@ async def create_music(music: MusicCreate, background_tasks: BackgroundTasks):
         return records
     except Exception as e:
         logger.error("Failed to create music: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/remix", response_model=List[MusicResponse])
+async def remix_music(remix: RemixCreate, background_tasks: BackgroundTasks):
+    logger.info(
+        "Remix request: source_id=%s lyrics_provided=%s gender=%s",
+        remix.id, remix.lyrics is not None, remix.gender,
+    )
+    try:
+        records = await MusicService.remix_music(remix)
+        for record in records:
+            logger.info(
+                "Queuing remix poll task: task_id=%s conversion_id=%s",
+                record["task_id"], record["conversion_id"],
+            )
+            background_tasks.add_task(
+                MusicService.poll_and_store,
+                record["task_id"],
+                record["conversion_id"],
+                record["user_id"],
+                "REMIX",
+            )
+        logger.info("Remix job submitted: task_id=%s source_id=%s", records[0]["task_id"], remix.id)
+        return records
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error("Failed to create remix job: %s", e)
         raise HTTPException(status_code=400, detail=str(e))

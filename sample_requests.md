@@ -277,6 +277,41 @@ All requests go to `POST /music/generateMusic`. Only `project_id`, `user_id`, `u
 
 ---
 
+## Inpaint
+
+All requests go to `POST /inpaint/inpaint`. Required fields: `id` (source `music_metadata` UUID), `user_id`, `audio_url`, `prompt`, `replace_start_at`, `replace_end_at`. Optional: `lyrics`, `lyrics_section_to_replace`, `gender`, `num_outputs`. Returns 2 new rows immediately with `is_cloned` set to the source `id`; background polling completes them the same way as music generation.
+
+### Inpaint Instrumental — Replace a Section with Different Style
+```json
+{
+  "id": "fd508668-0bda-4805-a515-93063c4b7364",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "audio_url": "https://<supabase>/storage/v1/object/public/music-generated/a1b2c3d4-.../task-xyz-123/conv-abc-001.mp3",
+  "prompt": "Replace this section with a heavier, distorted guitar breakdown",
+  "replace_start_at": 30.0,
+  "replace_end_at": 60.0,
+  "num_outputs": 2
+}
+```
+
+### Inpaint Vocal Track — Replace Chorus Lyrics and Vocalist
+```json
+{
+  "id": "fd508668-0bda-4805-a515-93063c4b7364",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "audio_url": "https://<supabase>/storage/v1/object/public/music-generated/a1b2c3d4-.../task-xyz-123/conv-abc-001.mp3",
+  "prompt": "Replace the chorus with a softer, more emotional delivery",
+  "replace_start_at": 45.0,
+  "replace_end_at": 75.0,
+  "lyrics": "Verse 1: Every night I look up at the stars...\nChorus: I miss you more than words can say...",
+  "lyrics_section_to_replace": "I miss you more than words can say...",
+  "gender": "female",
+  "num_outputs": 2
+}
+```
+
+---
+
 ## Stem Separation
 
 All requests go to `POST /separate/` as `multipart/form-data`. Required fields: `file` (audio upload), `user_id`, `project_id`. Returns a job immediately with `status: PENDING`; processing runs in the background. Poll the `audio_separations` table by `id` to check progress.
@@ -405,6 +440,104 @@ curl -X GET "http://localhost:8000/download/?user_id=a1b2c3d4-e5f6-7890-abcd-ef1
       "generated_lyrics": "Verse 1: ..."
     }
   ]
+}
+```
+
+---
+
+## Remix
+
+All requests go to `POST /music/remix`. Only `id` (source `music_metadata` UUID with a completed `audio_url`) is required. Optional `prompt` overrides the source track's prompt; if omitted, the original prompt is reused. Provide `lyrics` for vocal tracks; omit for instrumentals/background scores.
+
+### Remix Instrumental — Style Change
+```json
+{
+  "id": "fd508668-0bda-4805-a515-93063c4b7364",
+  "prompt": "Make it sound like a dark cinematic lo-fi chill beat"
+}
+```
+
+### Remix Instrumental — No Prompt Override (reuse original)
+```json
+{
+  "id": "fd508668-0bda-4805-a515-93063c4b7364"
+}
+```
+
+### Remix Vocal Track — With Lyrics and Gender
+```json
+{
+  "id": "fd508668-0bda-4805-a515-93063c4b7364",
+  "prompt": "Transform into a soft R&B ballad",
+  "lyrics": "Verse 1: Every night I look up at the stars...\nChorus: I miss you more than words can say...",
+  "gender": "female"
+}
+```
+
+---
+
+## Quick Idea Generation
+
+All requests go to `POST /prompt/quick-idea`. Required fields: `user_id`, `user_name`, `prompt`. Returns an AI-generated music concept/idea stored in the `prompt` column of `user_prompts` with `feature_type: "quick_idea"`.
+
+### Basic Idea from Short Prompt
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "a sad rainy night drive"
+}
+```
+
+### Genre-Hinted Idea
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "something dark and electronic for a thriller film"
+}
+```
+
+### Vibe-Only Idea
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "euphoric summer festival energy"
+}
+```
+
+---
+
+## Prompt Enhancer
+
+All requests go to `POST /prompt/enhance`. Required fields: `user_id`, `user_name`, `prompt`. Optional: `master_prompt` — if omitted, the system uses the default master prompt from `prompts/musicenhancerprompt.md`. Returns an enhanced, detailed prompt stored in `user_prompts` with `feature_type: "prompt_enhanced"`.
+
+### Enhance Without Master Prompt (uses default)
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "a chill lo-fi beat for studying"
+}
+```
+
+### Enhance With Custom Master Prompt
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "an epic orchestral battle theme",
+  "master_prompt": "You are a film score composer. Expand the user's prompt into a precise, production-ready music brief including tempo (BPM), key, instrumentation, dynamics arc, and reference composers."
+}
+```
+
+### Enhance a Simple Mood
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "prompt": "happy upbeat morning vibes"
 }
 ```
 
