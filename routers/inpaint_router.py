@@ -1,8 +1,9 @@
 import logging
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from typing import List
 from models.music_model import InpaintCreate, MusicResponse
 from services.music_service import MusicService
+from tasks.music_tasks import submit_and_poll_task
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +11,7 @@ router = APIRouter(prefix="/inpaint", tags=["Inpaint"])
 
 
 @router.post("/inpaint", response_model=List[MusicResponse])
-async def inpaint_music(inpaint: InpaintCreate, background_tasks: BackgroundTasks):
+async def inpaint_music(inpaint: InpaintCreate):
     if len(inpaint.prompt) > 280:
         raise HTTPException(
             status_code=422,
@@ -21,20 +22,17 @@ async def inpaint_music(inpaint: InpaintCreate, background_tasks: BackgroundTask
         inpaint.id, inpaint.replace_start_at, inpaint.replace_end_at,
     )
     try:
-        records = await MusicService.inpaint_music(inpaint)
-        for record in records:
-            logger.info(
-                "Queuing inpaint poll task: task_id=%s conversion_id=%s",
-                record["task_id"], record["conversion_id"],
-            )
-            background_tasks.add_task(
-                MusicService.poll_and_store,
-                record["task_id"],
-                record["conversion_id"],
-                inpaint.user_id,
-                "INPAINT",
-            )
-        logger.info("Inpaint job submitted: task_id=%s source_id=%s", records[0]["task_id"], inpaint.id)
+        records, celery_params = await MusicService.inpaint_music(inpaint)
+        stable_task_id = records[0]["task_id"]
+        record_ids = [r["id"] for r in records]
+        submit_and_poll_task.apply_async(
+            args=["inpaint", stable_task_id, record_ids, celery_params],
+            queue="musicgpt_album",
+        )
+        logger.info(
+            "Inpaint job queued to Celery: stable_task_id=%s source_id=%s",
+            stable_task_id, inpaint.id,
+        )
         return records
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

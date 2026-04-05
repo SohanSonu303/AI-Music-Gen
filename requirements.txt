@@ -1,9 +1,12 @@
+celery[redis]
 demucs
 fastapi
 httpx
+langgraph
 pydantic
 python-dotenv
 python-multipart
+redis
 supabase
 torchcodec
 uvicorn[standard]

@@ -1,9 +1,10 @@
 import logging
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from typing import List
 from models.music_model import MusicCreate, MusicResponse
 from models.remix_model import RemixCreate
 from services.music_service import MusicService
+from tasks.music_tasks import submit_and_poll_task
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +12,7 @@ router = APIRouter(prefix="/music", tags=["Music"])
 
 
 @router.post("/generateMusic", response_model=List[MusicResponse])
-async def create_music(music: MusicCreate, background_tasks: BackgroundTasks):
+async def create_music(music: MusicCreate):
     if len(music.prompt) > 280:
         raise HTTPException(
             status_code=422,
@@ -22,19 +23,17 @@ async def create_music(music: MusicCreate, background_tasks: BackgroundTasks):
         music.project_id, music.type, music.prompt,
     )
     try:
-        records = await MusicService.create_music(music)
-        for record in records:
-            logger.info(
-                "Queuing poll task: task_id=%s conversion_id=%s",
-                record["task_id"], record["conversion_id"],
-            )
-            background_tasks.add_task(
-                MusicService.poll_and_store,
-                record["task_id"],
-                record["conversion_id"],
-                music.user_id,
-            )
-        logger.info("Music job submitted: task_id=%s", records[0]["task_id"])
+        records, celery_params = await MusicService.create_music(music)
+        stable_task_id = records[0]["task_id"]
+        record_ids = [r["id"] for r in records]
+        submit_and_poll_task.apply_async(
+            args=["music", stable_task_id, record_ids, celery_params],
+            queue="musicgpt_album",
+        )
+        logger.info(
+            "Music job queued to Celery: stable_task_id=%s records=%d",
+            stable_task_id, len(records),
+        )
         return records
     except Exception as e:
         logger.error("Failed to create music: %s", e)
@@ -42,26 +41,23 @@ async def create_music(music: MusicCreate, background_tasks: BackgroundTasks):
 
 
 @router.post("/remix", response_model=List[MusicResponse])
-async def remix_music(remix: RemixCreate, background_tasks: BackgroundTasks):
+async def remix_music(remix: RemixCreate):
     logger.info(
         "Remix request: source_id=%s lyrics_provided=%s gender=%s",
         remix.id, remix.lyrics is not None, remix.gender,
     )
     try:
-        records = await MusicService.remix_music(remix)
-        for record in records:
-            logger.info(
-                "Queuing remix poll task: task_id=%s conversion_id=%s",
-                record["task_id"], record["conversion_id"],
-            )
-            background_tasks.add_task(
-                MusicService.poll_and_store,
-                record["task_id"],
-                record["conversion_id"],
-                record["user_id"],
-                "REMIX",
-            )
-        logger.info("Remix job submitted: task_id=%s source_id=%s", records[0]["task_id"], remix.id)
+        records, celery_params = await MusicService.remix_music(remix)
+        stable_task_id = records[0]["task_id"]
+        record_ids = [r["id"] for r in records]
+        submit_and_poll_task.apply_async(
+            args=["remix", stable_task_id, record_ids, celery_params],
+            queue="musicgpt_album",
+        )
+        logger.info(
+            "Remix job queued to Celery: stable_task_id=%s source_id=%s",
+            stable_task_id, remix.id,
+        )
         return records
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

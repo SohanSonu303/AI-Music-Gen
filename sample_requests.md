@@ -551,3 +551,278 @@ All requests go to `POST /prompt/enhance`. Required fields: `user_id`, `user_nam
 | `vocal` | Isolated vocals / voiceover only |
 | `sfx` | Sound effects |
 | `stem` | Individual stems (drums, bass, melody, etc.) |
+
+---
+
+---
+
+## Album Generation
+
+A full AI-planned album from a script. The flow has two phases: **AI Planning** (async) → **Music Generation** (Celery workers).
+
+### User Flow
+
+```
+POST /album/create
+        ↓ (returns immediately, status=PLANNING)
+Poll GET /album/{album_id}
+        ↓ (wait until status=PLANNED — AI agent segments script, writes prompts + lyrics)
+Review track suggestions in response
+        ↓ (optionally edit tracks)
+PUT /album/{album_id}/approve
+        ↓ (returns immediately, status=GENERATING, Celery workers start)
+Poll GET /album/{album_id}/progress
+        ↓ (wait until status=COMPLETED)
+GET /album/{album_id}
+        ↓ (full album with all tracks + audio_urls)
+```
+
+---
+
+### Step 1 — Create Album
+
+`POST /album/create`
+
+#### Film Score Album (2 songs + 1 background score)
+```json
+{
+  "project_id": "proj_001",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "user_email": "sohan@example.com",
+  "script": "Act 1: A young soldier stands at the border of a war-torn city at dawn, full of hope and resolve. He writes a letter to his family. Act 2: Months later, the soldier witnesses the destruction of his hometown. He loses his closest friend in battle. The mood shifts to grief and rage. Act 3: The war ends. The soldier returns home to silence — his family gone, but a new child born in his absence. He holds the baby and finds a reason to continue.",
+  "songs": 2,
+  "background_scores": 1,
+  "instrumentals": 0
+}
+```
+
+#### Pure Instrumental Album (3 tracks)
+```json
+{
+  "project_id": "proj_002",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "user_email": "sohan@example.com",
+  "script": "Scene 1: A lone traveler walks through a vast desert at sunrise, peaceful and unhurried. Scene 2: A sudden sandstorm engulfs the path — visibility drops to zero, tension rises. Scene 3: The storm clears to reveal an ancient city buried in sand, hauntingly beautiful.",
+  "songs": 0,
+  "background_scores": 1,
+  "instrumentals": 2
+}
+```
+
+#### Mixed Album (1 song + 1 background score + 1 instrumental)
+```json
+{
+  "project_id": "proj_003",
+  "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "user_name": "Sohan",
+  "user_email": "sohan@example.com",
+  "script": "Opening: The city never sleeps — neon lights, crowded streets, a woman searches for someone she lost years ago. Middle: She finds a clue at an old jazz bar; a bartender remembers a name. Ending: She finds him — older, broken, but alive. They sit in silence as the rain falls outside.",
+  "songs": 1,
+  "background_scores": 1,
+  "instrumentals": 1
+}
+```
+
+**Expected response (immediate):**
+```json
+{
+  "id": "4ecc36af-8aae-4f40-8c1b-73f79f9342fd",
+  "status": "PLANNING",
+  "title": null,
+  "tracks": [],
+  "created_at": "2026-04-04T12:00:00Z"
+}
+```
+
+---
+
+### Step 2 — Poll Until Planned
+
+`GET /album/4ecc36af-8aae-4f40-8c1b-73f79f9342fd`
+
+Poll every 5–10 seconds. When `status == "PLANNED"` the response includes all track suggestions:
+
+```json
+{
+  "id": "4ecc36af-8aae-4f40-8c1b-73f79f9342fd",
+  "title": "Echoes of the Fallen",
+  "status": "PLANNED",
+  "style_palette": "{\"primary_genre\":\"cinematic\",\"bpm_range\":\"60-90\",\"key_signature\":\"D minor\",\"instrumentation_family\":\"orchestral + piano\",\"mood_arc\":\"hopeful → grief → redemption\"}",
+  "tracks": [
+    {
+      "id": "track-uuid-1",
+      "track_number": 1,
+      "track_type": "song",
+      "scene_description": "A soldier at dawn, full of hope, writing to his family",
+      "script_excerpt": "A young soldier stands at the border...",
+      "suggested_style": "orchestral pop",
+      "suggested_mood": "hopeful, tender",
+      "suggested_tempo": "slow ballad ~70 BPM",
+      "prompt": "Orchestral pop ballad, tender piano melody, soft strings, hopeful male vocals, dawn atmosphere",
+      "music_style": "orchestral pop, cinematic, piano-led",
+      "lyrics": "Verse 1:\nI write your name in the morning light...",
+      "make_instrumental": false,
+      "energy_level": 4,
+      "music_metadata_id": null,
+      "music_metadata_id_2": null,
+      "task_id": null,
+      "status": "PENDING"
+    },
+    {
+      "id": "track-uuid-2",
+      "track_number": 2,
+      "track_type": "background_score",
+      "scene_description": "Battle and destruction, loss of a friend",
+      "suggested_style": "dark cinematic",
+      "suggested_mood": "grief, tension, rage",
+      "suggested_tempo": "driving mid-tempo ~100 BPM",
+      "prompt": "Dark cinematic score, distorted low strings, war drums, rising tension, no vocals",
+      "music_style": "cinematic, dark orchestral, percussive",
+      "make_instrumental": true,
+      "energy_level": 9,
+      "status": "PENDING"
+    },
+    {
+      "id": "track-uuid-3",
+      "track_number": 3,
+      "track_type": "song",
+      "scene_description": "Soldier returns to silence, finds new life to live for",
+      "suggested_mood": "bittersweet, redemptive",
+      "prompt": "Bittersweet orchestral ballad, swelling strings, emotional male vocals, quiet beginning builds to hopeful climax",
+      "make_instrumental": false,
+      "energy_level": 6,
+      "status": "PENDING"
+    }
+  ]
+}
+```
+
+---
+
+### Step 3 — Approve (accept as-is or edit tracks)
+
+`PUT /album/4ecc36af-8aae-4f40-8c1b-73f79f9342fd/approve`
+
+#### Accept all AI suggestions without changes
+```json
+{}
+```
+
+#### Approve with edits to specific tracks
+```json
+{
+  "track_updates": [
+    {
+      "id": "track-uuid-1",
+      "prompt": "Tender orchestral ballad with solo cello and soft male vocals, dawn light atmosphere",
+      "gender": "male"
+    },
+    {
+      "id": "track-uuid-3",
+      "lyrics": "Verse 1:\nI came home to silence and a child I'd never met...\nChorus: But you give me a reason, you give me a reason to stay...",
+      "gender": "male",
+      "output_length": 210
+    }
+  ]
+}
+```
+
+**Expected response (immediate, generation started):**
+```json
+{
+  "id": "4ecc36af-8aae-4f40-8c1b-73f79f9342fd",
+  "status": "GENERATING",
+  "tracks": [
+    { "track_number": 1, "status": "PENDING" },
+    { "track_number": 2, "status": "PENDING" },
+    { "track_number": 3, "status": "PENDING" }
+  ]
+}
+```
+
+---
+
+### Step 4 — Poll Progress
+
+`GET /album/4ecc36af-8aae-4f40-8c1b-73f79f9342fd/progress`
+
+Poll every 15–30 seconds while `status == "GENERATING"`:
+
+```json
+{
+  "album_id": "4ecc36af-8aae-4f40-8c1b-73f79f9342fd",
+  "status": "GENERATING",
+  "tracks_completed": 1,
+  "tracks_total": 3,
+  "tracks": [
+    { "track_number": 1, "status": "COMPLETED" },
+    { "track_number": 2, "status": "IN_QUEUE" },
+    { "track_number": 3, "status": "PENDING" }
+  ]
+}
+```
+
+---
+
+### Step 5 — Fetch Completed Album
+
+`GET /album/4ecc36af-8aae-4f40-8c1b-73f79f9342fd`
+
+When `status == "COMPLETED"`, fetch the full album. Each track has two generated versions:
+
+| Field | Description |
+|---|---|
+| `music_metadata_id` | First conversion — use `task_id` with `GET /download/` to fetch both tracks |
+| `music_metadata_id_2` | Second conversion — same `task_id`, different `conversion_id` |
+
+MusicGPT always generates 2 variations per submission. Both are stored in `music_metadata` under the same `task_id`. Use `GET /download/?user_id=<id>&task_id=<task_id>` to retrieve both audio URLs at once.
+
+---
+
+### Step 6 (optional) — Re-plan a Track
+
+Use while album is `PLANNED` to regenerate AI suggestions for one track.
+
+`PUT /album/4ecc36af-8aae-4f40-8c1b-73f79f9342fd/tracks/track-uuid-2/replan`
+
+#### Regenerate using same script section (no body needed)
+```json
+{}
+```
+
+#### Replan with a different script excerpt
+```json
+{
+  "custom_script_excerpt": "He loses his closest friend in battle. The sky turns red. He screams into the void, voice breaking."
+}
+```
+
+---
+
+### Step 7 (optional) — Regenerate a Track's Audio
+
+Use after generation has started (`GENERATING` or `COMPLETED`) to re-submit one track to MusicGPT.
+
+`PUT /album/4ecc36af-8aae-4f40-8c1b-73f79f9342fd/tracks/track-uuid-2/regenerate`
+
+No body required. Returns the updated track with `status: PENDING`.
+
+---
+
+### Retry Failed Album
+
+If `status == "FAILED"` (e.g. due to MusicGPT rate limit or network error), re-call approve:
+
+`PUT /album/4ecc36af-8aae-4f40-8c1b-73f79f9342fd/approve`
+
+Only tracks that are NOT already `COMPLETED` will be re-submitted. Already completed tracks are skipped.
+
+---
+
+### Get All Albums for a User
+
+`GET /album/user/a1b2c3d4-e5f6-7890-abcd-ef1234567890`
+
+Returns a list of all albums with their tracks, ordered by `created_at` descending.
