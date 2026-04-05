@@ -1,3 +1,4 @@
+import asyncio
 import os
 import logging
 import httpx
@@ -27,7 +28,7 @@ def _load_master_prompt() -> str:
     return MASTER_PROMPT_PATH.read_text(encoding="utf-8").strip()
 
 
-async def _call_openrouter(system_prompt: str, user_prompt: str) -> str:
+async def _call_openrouter(system_prompt: str, user_prompt: str, retries: int = 3) -> str:
     if not OPENROUTER_API_KEY:
         raise ValueError("OPENROUTER_API_KEY is not set in environment variables")
 
@@ -42,15 +43,32 @@ async def _call_openrouter(system_prompt: str, user_prompt: str) -> str:
             {"role": "user", "content": user_prompt},
         ],
     }
-    timeout = httpx.Timeout(connect=10.0, read=60.0, write=10.0, pool=5.0)
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(OPENROUTER_API_URL, headers=headers, json=payload)
+    # Generous timeout for large script analysis — DeepSeek can be slow on long inputs.
+    timeout = httpx.Timeout(connect=10.0, read=300.0, write=10.0, pool=5.0)
 
-    if response.status_code != 200:
-        logger.error("OpenRouter error %s: %s", response.status_code, response.text)
-        response.raise_for_status()
+    last_exc: Exception | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(OPENROUTER_API_URL, headers=headers, json=payload)
 
-    return response.json()["choices"][0]["message"]["content"].strip()
+            if response.status_code != 200:
+                logger.error("OpenRouter error %s: %s", response.status_code, response.text)
+                response.raise_for_status()
+
+            return response.json()["choices"][0]["message"]["content"].strip()
+
+        except (httpx.ReadTimeout, httpx.ConnectTimeout) as exc:
+            last_exc = exc
+            wait = 5 * attempt   # 5s, 10s, 15s
+            logger.warning(
+                "OpenRouter timeout on attempt %d/%d — retrying in %ds: %s",
+                attempt, retries, wait, type(exc).__name__,
+            )
+            if attempt < retries:
+                await asyncio.sleep(wait)
+
+    raise last_exc
 
 
 class PromptService:
