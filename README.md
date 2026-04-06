@@ -84,7 +84,7 @@ sudo systemctl start redis
 # Verify Redis is running
 redis-cli ping   # should print PONG
 
-# To Step Redis
+# To Stop Redis
 brew services stop redis
 ```
 
@@ -106,9 +106,6 @@ REDIS_URL=redis://localhost:6379/0
 # then restart the Celery worker with the matching --concurrency value (see Step 7).
 MUSICGPT_MAX_PARALLEL=1
 
-# Optional: watchdog timeout in seconds to auto-fail jobs stuck in QUEUED
-# (default 600 = 10 minutes)
-MUSIC_QUEUE_STALE_SECONDS=600
 ```
 
 ---
@@ -188,12 +185,57 @@ QUEUED → (worker picks up) → IN_QUEUE → (MusicGPT completes) → COMPLETED
 |---------|---------|
 | FastAPI server | `uvicorn main:app --reload` |
 | Celery worker | `celery -A celery_app worker -Q musicgpt_album --concurrency=1` |
-
 Queue diagnostics:
 `GET /queue/health` returns Redis connectivity + active Celery worker information.
 
 > The Celery worker is **required** for all music generation features.  
 > Without it, requests will be queued (`status=QUEUED`) but never processed.
+
+---
+
+## Features
+
+### Image-to-Song Generation
+
+The `image-to-song` feature allows users to generate music based on an image. Users can upload an image file or provide an image URL, along with optional parameters like prompts, lyrics, and music style preferences. The generated music can be instrumental, vocal, or both.
+
+---
+
+## API Endpoints
+
+### Image-to-Song Endpoint
+
+**POST** `/image-to-song/generate`
+
+#### Request Parameters:
+- **Form Data**:
+  - `project_id` (str, required): The project ID.
+  - `user_id` (str, required): The user ID (must be a valid UUID).
+  - `user_name` (str, optional): The name of the user.
+  - `user_email` (str, optional): The email of the user.
+  - `image_url` (str, optional): URL of the image (provide either `image_url` or `image_file`).
+  - `image_file` (file, optional): Uploaded image file (provide either `image_url` or `image_file`).
+  - `prompt` (str, optional): Text prompt for music generation (max 300 characters).
+  - `lyrics` (str, optional): Lyrics for the song (max 3000 characters).
+  - `make_instrumental` (bool, optional): Whether to generate instrumental music.
+  - `vocal_only` (bool, optional): Whether to generate vocal-only music.
+  - `key` (str, optional): Key of the music.
+  - `bpm` (int, optional): Beats per minute.
+  - `voice_id` (str, optional): ID of the voice to use.
+  - `webhook_url` (str, optional): URL for webhook notifications.
+
+#### Response:
+- A list of `MusicResponse` objects containing metadata about the generated music.
+
+#### Example:
+```bash
+curl -X POST http://localhost:8000/image-to-song/generate \
+  -F "project_id=12345" \
+  -F "user_id=550e8400-e29b-41d4-a716-446655440000" \
+  -F "image_url=https://example.com/image.jpg" \
+  -F "prompt=Generate a calm instrumental track" \
+  -F "make_instrumental=true"
+```
 
 ---
 
@@ -262,3 +304,12 @@ AI-Music-Gen/
     └── sound_service.py      # Sound generation, polling, and Supabase Storage upload
     └── album_service.py      # Album CRUD, LangGraph agent runner, Celery task dispatch, completion monitor
 ```
+
+---
+
+## Notes
+
+- The `image-to-song` feature uses the `MusicService.create_image_to_song` method to pre-insert metadata rows and queue tasks for processing.
+- Validation ensures that either `image_url` or `image_file` is provided, but not both.
+- The Celery worker processes the queued tasks and generates the music using the MusicGPT API.
+- Ensure Redis and Celery are running for this feature to work.
