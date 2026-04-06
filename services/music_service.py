@@ -1,11 +1,20 @@
 import logging
+import os
+import asyncio
 from uuid import uuid4
+from datetime import datetime, timezone
 from models.music_model import MusicCreate, InpaintCreate
+from models.image_to_song_model import ImageToSongCreate
 from models.extend_model import ExtendCreate
 from models.remix_model import RemixCreate
 from supabase_client import supabase
 
 logger = logging.getLogger(__name__)
+STALE_QUEUE_TIMEOUT_SECONDS = int(os.environ.get("MUSIC_QUEUE_STALE_SECONDS", "600"))
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 class MusicService:
@@ -189,3 +198,81 @@ class MusicService:
             "gender": data.gender,
         }
         return inserted, celery_params
+
+    @staticmethod
+    async def create_image_to_song(data: ImageToSongCreate) -> tuple[list[dict], dict]:
+        stable_task_id = str(uuid4())
+        music_type = "vocal" if data.vocal_only else "music"
+
+        base_record = {
+            "project_id": data.project_id,
+            "user_id": data.user_id,
+            "user_name": data.user_name,
+            "user_email": data.user_email,
+            "type": music_type,
+            "task_id": stable_task_id,
+            "status": "QUEUED",
+            "prompt": data.prompt,
+            "music_style": None,
+        }
+        records = [{**base_record, "conversion_id": f"{stable_task_id}_1"}]
+        db_response = supabase.table("music_metadata").insert(records).execute()
+        inserted = db_response.data
+        logger.info(
+            "Pre-inserted 1 QUEUED image_to_song music_metadata row: stable_task_id=%s",
+            stable_task_id,
+        )
+
+        celery_params = {
+            "user_id": data.user_id,
+            "image_url": data.image_url,
+            "image_file_path": data.image_file_path,
+            "prompt": data.prompt,
+            "lyrics": data.lyrics,
+            "make_instrumental": data.make_instrumental,
+            "vocal_only": data.vocal_only,
+            "key": data.key,
+            "bpm": data.bpm,
+            "voice_id": data.voice_id,
+            "webhook_url": data.webhook_url,
+        }
+        return inserted, celery_params
+
+    @staticmethod
+    def mark_task_failed(task_id: str, error_message: str) -> None:
+        supabase.table("music_metadata").update(
+            {
+                "status": "FAILED",
+                "error_message": error_message,
+                "updated_at": _now_iso(),
+            }
+        ).eq("task_id", task_id).execute()
+
+    @staticmethod
+    async def fail_if_stale_queued(task_id: str, timeout_seconds: int = STALE_QUEUE_TIMEOUT_SECONDS) -> None:
+        """
+        Watchdog for queue starvation:
+        if a task is still QUEUED after timeout, mark it FAILED with a clear message.
+        """
+        await asyncio.sleep(timeout_seconds)
+        resp = (
+            supabase.table("music_metadata")
+            .select("status")
+            .eq("task_id", task_id)
+            .execute()
+        )
+        rows = resp.data or []
+        if not rows:
+            return
+
+        if all(row.get("status") == "QUEUED" for row in rows):
+            logger.warning(
+                "Watchdog marked task as FAILED due to stale QUEUED status: task_id=%s timeout=%ss",
+                task_id,
+                timeout_seconds,
+            )
+            MusicService.mark_task_failed(
+                task_id,
+                f"Task stuck in QUEUED for more than {timeout_seconds} seconds. "
+                "Worker may be offline or queue unavailable.",
+            )

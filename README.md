@@ -102,9 +102,13 @@ OPENROUTER_API_KEY=...
 REDIS_URL=redis://localhost:6379/0
 
 # Max parallel MusicGPT requests (applies to ALL generation: generateMusic, remix,
-# inpaint, extend, and album tracks). Free plan = 1. Bump to 2 or 3 on a paid plan,
+# inpaint, extend, image-to-song, and album tracks). Free plan = 1. Bump to 2 or 3 on a paid plan,
 # then restart the Celery worker with the matching --concurrency value (see Step 7).
 MUSICGPT_MAX_PARALLEL=1
+
+# Optional: watchdog timeout in seconds to auto-fail jobs stuck in QUEUED
+# (default 600 = 10 minutes)
+MUSIC_QUEUE_STALE_SECONDS=600
 ```
 
 ---
@@ -126,7 +130,7 @@ Interactive API docs at `http://localhost:8000/docs`
 
 ### Step 7 — Run the Celery worker
 
-**All** MusicGPT submissions — `generateMusic`, `remix`, `inpaint`, `extend`, and album tracks — go through the Celery queue. This is what prevents `429 Too Many Parallel Requests` errors when multiple users are active at the same time.
+**All** MusicGPT submissions — `generateMusic`, `remix`, `inpaint`, `extend`, `image-to-song`, and album tracks — go through the Celery queue. This is what prevents `429 Too Many Parallel Requests` errors when multiple users are active at the same time.
 
 Open a **second terminal tab** and run:
 
@@ -185,6 +189,9 @@ QUEUED → (worker picks up) → IN_QUEUE → (MusicGPT completes) → COMPLETED
 | FastAPI server | `uvicorn main:app --reload` |
 | Celery worker | `celery -A celery_app worker -Q musicgpt_album --concurrency=1` |
 
+Queue diagnostics:
+`GET /queue/health` returns Redis connectivity + active Celery worker information.
+
 > The Celery worker is **required** for all music generation features.  
 > Without it, requests will be queued (`status=QUEUED`) but never processed.
 
@@ -211,6 +218,7 @@ AI-Music-Gen/
 │   ├── 002_add_script_excerpt.sql     # Adds script_excerpt to album_tracks
 │   ├── 003_add_music_metadata_id_2.sql # Adds music_metadata_id_2 to album_tracks
 │   └── 004_add_musicgpt_task_id.sql   # Adds musicgpt_task_id to music_metadata
+│   └── 005_add_music_metadata_error_message.sql # Adds error_message to music_metadata
 ├── prompts/
 │   ├── musicenhancerprompt.md       # Default master prompt for prompt enhancer
 │   ├── album_script_analysis.md     # System prompt: segment script into track sections
@@ -228,6 +236,7 @@ AI-Music-Gen/
 │   ├── prompt_model.py       # QuickIdeaCreate, PromptEnhanceCreate, PromptResponse
 │   ├── extend_model.py       # ExtendCreate
 │   ├── remix_model.py        # RemixCreate
+│   ├── image_to_song_model.py # ImageToSongCreate
 │   └── album_model.py        # AlbumCreate, AlbumApprove, AlbumResponse, AlbumTrackResponse, TrackUpdate, TrackReplanRequest
 │   └── sound_model.py        # SoundCreate, SoundResponse
 ├── routers/
@@ -237,8 +246,10 @@ AI-Music-Gen/
 │   ├── lyrics_router.py      # POST /lyrics/generate
 │   ├── separation_router.py  # POST /separate/
 │   ├── download_router.py    # GET /download/
+│   ├── queue_router.py       # GET /queue/health
 │   ├── prompt_router.py      # POST /prompt/quick-idea, POST /prompt/enhance
 │   └── sound_router.py       # POST /sound_generator/, GET /sound_generator/, GET /sound_generator/status
+│   ├── image_to_song_router.py # POST /image-to-song/generate
 │   ├── extend_router.py      # POST /extend/extend
 │   └── album_router.py       # POST /album/create, GET /album/{id}, PUT /album/{id}/approve, GET /album/{id}/progress, PUT /album/{id}/tracks/{tid}/replan, PUT /album/{id}/tracks/{tid}/regenerate
 └── services/
