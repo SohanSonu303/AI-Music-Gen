@@ -3,13 +3,14 @@ Album service — CRUD, agent orchestration, generation, completion monitor.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import BackgroundTasks, HTTPException
+from fastapi.concurrency import run_in_threadpool
 
 from agents.album_agent import album_agent
 from models.album_model import AlbumApprove, AlbumCreate
@@ -154,25 +155,31 @@ class AlbumService:
                     "energy_level": track.get("energy_level"),
                     "status": "PENDING",
                 })
-            supabase.table("album_tracks").insert(track_rows).execute()
+            await run_in_threadpool(
+                lambda: supabase.table("album_tracks").insert(track_rows).execute()
+            )
 
             style_palette_str = json.dumps(final_state["style_palette"]) if final_state.get("style_palette") else None
-            supabase.table("albums").update({
-                "status": "PLANNED",
-                "title": final_state.get("album_title") or "Untitled Album",
-                "style_palette": style_palette_str,
-                "updated_at": _now_iso(),
-            }).eq("id", album_id).execute()
+            await run_in_threadpool(
+                lambda: supabase.table("albums").update({
+                    "status": "PLANNED",
+                    "title": final_state.get("album_title") or "Untitled Album",
+                    "style_palette": style_palette_str,
+                    "updated_at": _now_iso(),
+                }).eq("id", album_id).execute()
+            )
 
             logger.info("Agent completed: album_id=%s title=%r tracks=%d",
                         album_id, final_state.get("album_title"), len(track_rows))
 
         except Exception as exc:
             logger.error("Agent failed: album_id=%s error=%s", album_id, exc)
-            supabase.table("albums").update({
-                "status": "FAILED",
-                "updated_at": _now_iso(),
-            }).eq("id", album_id).execute()
+            await run_in_threadpool(
+                lambda: supabase.table("albums").update({
+                    "status": "FAILED",
+                    "updated_at": _now_iso(),
+                }).eq("id", album_id).execute()
+            )
 
     # ── Approve & generate ────────────────────────────────────────────────────
 
@@ -260,12 +267,12 @@ class AlbumService:
     # ── Completion monitor ────────────────────────────────────────────────────
 
     @staticmethod
-    async def monitor_album_completion(album_id: str) -> None:
+    def monitor_album_completion(album_id: str) -> None:
         logger.info("Monitor started: album_id=%s", album_id)
         elapsed = 0
 
         while elapsed < MONITOR_TIMEOUT_SECONDS:
-            await asyncio.sleep(MONITOR_INTERVAL_SECONDS)
+            time.sleep(MONITOR_INTERVAL_SECONDS)
             elapsed += MONITOR_INTERVAL_SECONDS
 
             tracks = _fetch_tracks(album_id)
