@@ -574,3 +574,18 @@ This feature automates what a mastering engineer ($50–$500/track, 1–3 hours/
 | Streaming limiting | True peak limiter | Stage 7 Limiter at -0.5 dBFS |
 
 **Processing time:** 3–6 seconds for a 3-minute track on 2 vCPU / 4GB RAM. All processing is local — no external API calls, no per-use cost.
+
+
+ Analog Warmth — fixes AI music's digital flaws. Analyzes the track's      
+  frequency spectrum and adaptively corrects harshness, adds tube/tape      
+  saturation, rolls off harsh highs. Same process every time, parameters    
+  change per track. Think "doctor fixing problems."                         
+                                                                            
+  Style Enhancer — stamps a genre identity onto the music. You pick Lo-Fi /
+  EDM / Cinematic / Pop / Chill / Vintage and it applies that aesthetic's
+  complete DSP recipe. Blend slider controls how much. Think "costume       
+  change."                                                                  
+                                                                            
+  Key difference: Warmth is adaptive (reads the track, fixes it). Enhancer  
+  is preset (you choose the vibe, it applies it). Use Warmth first to clean,
+   then Enhancer to style.
