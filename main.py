@@ -35,7 +35,7 @@ app.include_router(album_router.router)
 app.include_router(sound_router.router)
 app.include_router(image_to_song_router.router)
 app.include_router(queue_router.router)
-
+app.include_router(audio_edit_test_router.router)
 @app.get("/")
 def read_root():
     return {"message": "Hello from FastAPI 🚀"}

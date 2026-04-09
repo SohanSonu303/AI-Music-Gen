@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audio Editor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0c0c0e;
+      color: #d4d4d8;
+      padding: 24px 20px 48px;
+      min-height: 100vh;
+    }
+
+    /* ── header ─────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 600; color: #fff; }
+    header p  { font-size: 0.75rem; color: #71717a; margin-top: 3px; }
+
+    .user-fields { display: flex; gap: 10px; flex-wrap: wrap; }
+    .user-field label {
+      display: block;
+      font-size: 0.68rem;
+      color: #71717a;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .user-field input {
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      border-radius: 7px;
+      color: #e4e4e7;
+      font-size: 0.82rem;
+      padding: 6px 10px;
+      width: 160px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .user-field input:focus { border-color: #7c3aed; }
+
+    /* ── panel ──────────────────────────────────────────── */
+    .panel {
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+    .panel-title {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #52525b;
+      margin-bottom: 14px;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid #27272a;
+      margin: 14px 0;
+    }
+
+    /* ── field ──────────────────────────────────────────── */
+    .field { margin-bottom: 10px; }
+    .field label {
+      display: block;
+      font-size: 0.71rem;
+      color: #71717a;
+      margin-bottom: 4px;
+    }
+    .field input[type="text"],
+    .field input[type="number"],
+    .field select {
+      width: 100%;
+      padding: 7px 10px;
+      background: #09090b;
+      border: 1px solid #3f3f46;
+      border-radius: 7px;
+      color: #e4e4e7;
+      font-size: 0.83rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .field input:focus,
+    .field select:focus { border-color: #7c3aed; }
+    .field input[type="file"] { font-size: 0.78rem; color: #a1a1aa; width: 100%; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+    /* ── toggle row ─────────────────────────────────────── */
+    .toggle-row {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+    .toggle-row label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.8rem;
+      color: #a1a1aa;
+      cursor: pointer;
+    }
+    .toggle-row input[type="radio"] { accent-color: #a78bfa; }
+
+    /* ── buttons ────────────────────────────────────────── */
+    .btn-secondary {
+      padding: 7px 16px;
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      border-radius: 8px;
+      color: #e4e4e7;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-secondary:hover:not(:disabled) { background: #3f3f46; }
+    .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary {
+      width: 100%;
+      padding: 10px;
+      background: #7c3aed;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 6px;
+    }
+    .btn-primary:hover:not(:disabled) { background: #6d28d9; }
+    .btn-primary:disabled { background: #3f3f46; color: #71717a; cursor: not-allowed; }
+
+    /* ── waveform ───────────────────────────────────────── */
+    .waveform-wrap {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 8px;
+      padding: 12px 12px 8px;
+      margin-top: 14px;
+    }
+    .waveform-placeholder {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #3f3f46;
+      font-size: 0.78rem;
+    }
+    .waveform-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .play-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #7c3aed;
+      border: none;
+      color: #fff;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .play-btn:hover { background: #6d28d9; }
+    .play-btn:disabled { background: #3f3f46; cursor: not-allowed; }
+    .time-lbl { font-size: 0.72rem; color: #71717a; font-variant-numeric: tabular-nums; }
+
+    /* ── op tabs ────────────────────────────────────────── */
+    .op-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .op-tab {
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1px solid #3f3f46;
+      background: transparent;
+      color: #a1a1aa;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .op-tab:hover { border-color: #7c3aed; color: #c4b5fd; }
+    .op-tab.active { background: #7c3aed; border-color: #7c3aed; color: #fff; font-weight: 500; }
+    .op-tab-premium { border-color: #6d28d9; background: linear-gradient(135deg, rgba(109,40,217,0.15), rgba(167,139,250,0.1)); color: #c4b5fd; }
+    .op-tab-premium:hover { border-color: #a78bfa; color: #ede9fe; background: linear-gradient(135deg, rgba(109,40,217,0.25), rgba(167,139,250,0.2)); }
+    .op-tab-premium.active { background: linear-gradient(135deg, #6d28d9, #7c3aed); border-color: #a78bfa; color: #fff; }
+
+    /* ── warmth panel ───────────────────────────────────── */
+    .warmth-header { margin-bottom: 14px; }
+    .warmth-title { font-size: 0.88rem; font-weight: 600; color: #c4b5fd; margin-bottom: 3px; }
+    .warmth-sub { font-size: 0.73rem; color: #52525b; line-height: 1.4; }
+    .warmth-slider { width: 100%; accent-color: #a78bfa; cursor: pointer; margin: 4px 0 6px; }
+    .warmth-ticks { display: flex; justify-content: space-between; font-size: 0.67rem; color: #3f3f46; margin-top: -2px; }
+    .warmth-presets { display: flex; gap: 7px; margin-top: 12px; flex-wrap: wrap; }
+    .warmth-preset-btn {
+      padding: 5px 14px;
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      border-radius: 20px;
+      color: #a1a1aa;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .warmth-preset-btn:hover { border-color: #a78bfa; color: #c4b5fd; background: rgba(167,139,250,0.08); }
+
+    /* ── AI Style Enhancer ───────────────────────────────── */
+    .enhance-header { margin-bottom: 14px; }
+    .enhance-title  { font-size: 1rem; font-weight: 700; background: linear-gradient(90deg,#a78bfa,#60a5fa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom: 4px; }
+    .enhance-sub    { font-size: 0.73rem; color: #71717a; line-height: 1.5; }
+
+    .enhance-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .enhance-card {
+      border: 1px solid #27272a;
+      border-radius: 8px;
+      padding: 10px 10px 8px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      background: #18181b;
+    }
+    .enhance-card:hover { border-color: #a78bfa; background: rgba(167,139,250,0.05); }
+    .enhance-card.selected { border-color: #a78bfa; background: rgba(167,139,250,0.12); }
+    .enhance-card-name { font-size: 0.82rem; font-weight: 600; color: #e4e4e7; margin-bottom: 3px; }
+    .enhance-card.selected .enhance-card-name { color: #c4b5fd; }
+    .enhance-card-desc { font-size: 0.68rem; color: #71717a; line-height: 1.4; margin-bottom: 6px; }
+    .enhance-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+    .enhance-tag  { font-size: 0.6rem; color: #a1a1aa; background: #27272a; border-radius: 3px; padding: 1px 5px; }
+    .enhance-card.selected .enhance-tag { background: rgba(167,139,250,0.2); color: #c4b5fd; }
+
+    .enhance-slider { width: 100%; accent-color: #60a5fa; margin-top: 4px; }
+    .enhance-ticks  { display: flex; justify-content: space-between; font-size: 0.6rem; color: #52525b; margin-top: 2px; }
+
+    .op-panel { display: none; }
+    .op-panel.active { display: block; }
+
+    .op-hint {
+      font-size: 0.73rem;
+      color: #52525b;
+      margin-bottom: 10px;
+    }
+
+    /* ── status ─────────────────────────────────────────── */
+    .status { font-size: 0.74rem; min-height: 16px; margin-top: 8px; }
+    .status.error { color: #f87171; }
+    .status.ok    { color: #4ade80; }
+    .status.busy  { color: #fbbf24; }
+
+    /* ── result actions ─────────────────────────────────── */
+    .result-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .dl-btn {
+      flex: 1;
+      padding: 9px;
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      border-radius: 8px;
+      color: #e4e4e7;
+      font-size: 0.84rem;
+      text-decoration: none;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .dl-btn:hover { background: #27272a; }
+    .save-btn {
+      flex: 1;
+      padding: 9px;
+      background: #065f46;
+      border: 1px solid #047857;
+      border-radius: 8px;
+      color: #6ee7b7;
+      font-size: 0.84rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .save-btn:hover:not(:disabled) { background: #047857; }
+    .save-btn:disabled { background: #27272a; border-color: #3f3f46; color: #52525b; cursor: not-allowed; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- ── header ──────────────────────────────────────────── -->
+<header>
+  <div>
+    <h1>Audio Editor</h1>
+    <p>Load audio → pick an operation → Run → Download or Save to Cloud</p>
+  </div>
+  <div class="user-fields">
+    <div class="user-field">
+      <label>User ID</label>
+      <input type="text" id="user_id" placeholder="user_abc123">
+    </div>
+    <div class="user-field">
+      <label>Project ID</label>
+      <input type="text" id="project_id" placeholder="proj_xyz">
+    </div>
+  </div>
+</header>
+
+<!-- ── source panel ─────────────────────────────────────── -->
+<div class="panel">
+  <div class="panel-title">Source Audio</div>
+
+  <div class="toggle-row">
+    <label><input type="radio" name="src_type" value="url" checked> URL</label>
+    <label><input type="radio" name="src_type" value="file"> File upload</label>
+  </div>
+  <div class="field" id="src_url_field">
+    <label>Audio URL</label>
+    <input type="text" id="src_url" placeholder="https://…supabase.co/storage/…">
+  </div>
+  <div class="field hidden" id="src_file_field">
+    <label>Audio File</label>
+    <input type="file" id="src_file" accept="audio/*">
+  </div>
+
+  <button class="btn-secondary" id="load-btn">Load &amp; Preview</button>
+  <div class="status" id="src-status"></div>
+
+  <!-- waveform -->
+  <div class="waveform-wrap">
+    <div id="waveform">
+      <div class="waveform-placeholder" id="waveform-ph">Load audio to see waveform</div>
+    </div>
+    <div class="waveform-controls hidden" id="src-controls">
+      <button class="play-btn" id="play-btn" disabled>▶</button>
+      <span class="time-lbl" id="src-time">0:00 / 0:00</span>
+      <span class="time-lbl" id="region-hint" style="margin-left:auto;color:#52525b"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ── operations panel ─────────────────────────────────── -->
+<div class="panel">
+  <div class="panel-title">Operation</div>
+
+  <div class="op-tabs">
+    <button class="op-tab active" data-op="cut">Cut</button>
+    <button class="op-tab" data-op="fade">Fade</button>
+    <button class="op-tab" data-op="loop">Loop</button>
+    <button class="op-tab" data-op="split">Split</button>
+    <button class="op-tab" data-op="mix">Mix</button>
+    <button class="op-tab" data-op="overlay">Overlay</button>
+    <button class="op-tab" data-op="eq">EQ</button>
+    <button class="op-tab op-tab-premium" data-op="warmth">✦ AI Warmth</button>
+    <button class="op-tab op-tab-premium" data-op="enhance">✦ Style Enhance</button>
+  </div>
+
+  <!-- cut -->
+  <div class="op-panel active" id="panel-cut">
+    <p class="op-hint">Drag the purple region on the waveform, or type manually.</p>
+    <div class="two-col">
+      <div class="field"><label>Start (ms)</label><input type="number" id="cut_start_ms" value="0" min="0"></div>
+      <div class="field"><label>End (ms)</label><input type="number" id="cut_end_ms" value="10000"></div>
+    </div>
+  </div>
+
+  <!-- fade -->
+  <div class="op-panel" id="panel-fade">
+    <div class="two-col">
+      <div class="field"><label>Fade In (ms)</label><input type="number" id="fade_in_ms" value="2000" min="0"></div>
+      <div class="field"><label>Fade Out (ms)</label><input type="number" id="fade_out_ms" value="2000" min="0"></div>
+    </div>
+  </div>
+
+  <!-- loop -->
+  <div class="op-panel" id="panel-loop">
+    <div class="field" style="max-width:180px">
+      <label>Repeat Count (2–10)</label>
+      <input type="number" id="loop_count" value="3" min="2" max="10">
+    </div>
+  </div>
+
+  <!-- split -->
+  <div class="op-panel" id="panel-split">
+    <p class="op-hint">Returns part 1 only. Drag the region end to set the split point.</p>
+    <div class="field" style="max-width:200px">
+      <label>Split Point (ms)</label>
+      <input type="number" id="split_ms" value="15000" min="0">
+    </div>
+  </div>
+
+  <!-- mix -->
+  <div class="op-panel" id="panel-mix">
+    <p class="op-hint">Source 1 is loaded above. Add Source 2 below — both tracks are summed together.</p>
+  </div>
+
+  <!-- overlay -->
+  <div class="op-panel" id="panel-overlay">
+    <p class="op-hint">Source 1 is the base. Source 2 is placed on top at the given position.</p>
+    <div class="field" style="max-width:200px">
+      <label>Overlay Position (ms)</label>
+      <input type="number" id="overlay_position_ms" value="5000" min="0">
+    </div>
+  </div>
+
+  <!-- eq -->
+  <div class="op-panel" id="panel-eq">
+    <div class="three-col">
+      <div class="field"><label>Frequency (Hz)</label><input type="number" id="eq_freq" value="1000" min="20" max="20000"></div>
+      <div class="field"><label>Gain dB (−20 → +20)</label><input type="number" id="eq_gain" value="5" min="-20" max="20" step="0.5"></div>
+      <div class="field"><label>Q Factor (default 1.41)</label><input type="number" id="eq_q" value="1.41" min="0.1" max="10" step="0.01"></div>
+    </div>
+  </div>
+
+  <!-- ai warmth -->
+  <div class="op-panel" id="panel-warmth">
+    <div class="warmth-header">
+      <div class="warmth-title">✦ AI Analog Warmth</div>
+      <div class="warmth-sub">Adaptive spectral analysis fixes AI music's metallic sheen — de-harshness, even-harmonic tube saturation, Moog tape rolloff &amp; glue compression.</div>
+    </div>
+    <div class="field">
+      <label>Intensity — <span id="warmth_intensity_label" style="color:#c4b5fd;font-weight:600">50%</span></label>
+      <input type="range" id="warmth_intensity" class="warmth-slider" min="0" max="100" value="50">
+      <div class="warmth-ticks">
+        <span>0 — Bypass</span>
+        <span>Subtle</span>
+        <span>Standard</span>
+        <span>Warm</span>
+        <span>Heavy →</span>
+      </div>
+    </div>
+    <div class="warmth-presets">
+      <button class="warmth-preset-btn" data-intensity="30">Subtle</button>
+      <button class="warmth-preset-btn" data-intensity="50">Standard</button>
+      <button class="warmth-preset-btn" data-intensity="70">Warm</button>
+      <button class="warmth-preset-btn" data-intensity="100">Heavy Analog</button>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:14px;cursor:pointer;font-size:0.8rem;color:#a1a1aa;">
+      <input type="checkbox" id="warmth_vocal_mode" style="accent-color:#a78bfa;width:15px;height:15px;">
+      <span><span style="color:#c4b5fd;font-weight:500">Vocal Mode</span> — de-essing, chest resonance, room reverb &amp; gentle compression</span>
+    </label>
+  </div>
+
+  <!-- ai style enhancer -->
+  <div class="op-panel" id="panel-enhance">
+    <div class="enhance-header">
+      <div class="enhance-title">✦ AI Style Enhancer</div>
+      <div class="enhance-sub">Pick a genre preset — each applies a curated DSP chain tuned for that style. Blend controls how much processing is applied.</div>
+    </div>
+
+    <input type="hidden" id="enhance_preset" value="lofi">
+
+    <div class="enhance-grid">
+      <div class="enhance-card selected" data-preset="lofi">
+        <div class="enhance-card-name">Lo-Fi</div>
+        <div class="enhance-card-desc">Warm, dusty cassette character</div>
+        <div class="enhance-tags">
+          <span class="enhance-tag">hip-hop</span>
+          <span class="enhance-tag">cassette</span>
+          <span class="enhance-tag">bedroom</span>
+        </div>
+      </div>
+      <div class="enhance-card" data-preset="edm">
+        <div class="enhance-card-name">EDM / Club</div>
+        <div class="enhance-card-desc">Punchy, wide and loud</div>
+        <div class="enhance-tags">
+          <span class="enhance-tag">electronic</span>
+          <span class="enhance-tag">dance</span>
+          <span class="enhance-tag">club</span>
+        </div>
+      </div>
+      <div class="enhance-card" data-preset="cinematic">
+        <div class="enhance-card-name">Cinematic</div>
+        <div class="enhance-card-desc">Grand, spacious concert-hall sound</div>
+        <div class="enhance-tags">
+          <span class="enhance-tag">film</span>
+          <span class="enhance-tag">orchestral</span>
+          <span class="enhance-tag">epic</span>
+        </div>
+      </div>
+      <div class="enhance-card" data-preset="pop">
+        <div class="enhance-card-name">Pop / Radio</div>
+        <div class="enhance-card-desc">Bright, polished, streaming-ready</div>
+        <div class="enhance-tags">
+          <span class="enhance-tag">pop</span>
+          <span class="enhance-tag">commercial</span>
+          <span class="enhance-tag">radio</span>
+        </div>
+      </div>
+      <div class="enhance-card" data-preset="chill">
+        <div class="enhance-card-name">Chill / Ambient</div>
+        <div class="enhance-card-desc">Soft, dreamy, no harsh edges</div>
+        <div class="enhance-tags">
+          <span class="enhance-tag">ambient</span>
+          <span class="enhance-tag">study</span>
+          <span class="enhance-tag">sleep</span>
+        </div>
+      </div>
+      <div class="enhance-card" data-preset="vintage">
+        <div class="enhance-card-name">Vintage / Classic</div>
+        <div class="enhance-card-desc">Warm tube saturation, 70s studio</div>
+        <div class="enhance-tags">
+          <span class="enhance-tag">70s</span>
+          <span class="enhance-tag">soul</span>
+          <span class="enhance-tag">classic</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Blend — <span id="enhance_intensity_label" style="color:#60a5fa;font-weight:600">70%</span></label>
+      <input type="range" id="enhance_intensity" class="enhance-slider" min="0" max="100" value="70">
+      <div class="enhance-ticks">
+        <span>0 — Dry</span>
+        <span>Light</span>
+        <span>Standard</span>
+        <span>Heavy</span>
+        <span>100% →</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- second source (mix / overlay only) -->
+  <div id="source2-panel" class="hidden">
+    <hr class="divider">
+    <div class="panel-title" id="src2-label">Second Track</div>
+    <div class="toggle-row">
+      <label><input type="radio" name="src2_type" value="url" checked> URL</label>
+      <label><input type="radio" name="src2_type" value="file"> File upload</label>
+    </div>
+    <div class="field" id="src2_url_field">
+      <label>Audio URL</label>
+      <input type="text" id="src2_url" placeholder="https://…">
+    </div>
+    <div class="field hidden" id="src2_file_field">
+      <label>Audio File</label>
+      <input type="file" id="src2_file" accept="audio/*">
+    </div>
+  </div>
+
+  <hr class="divider">
+  <div class="field" style="max-width:220px">
+    <label>Output Format</label>
+    <select id="output_format">
+      <option value="mp3" selected>MP3 (smaller, lossy)</option>
+      <option value="wav">WAV (lossless, larger)</option>
+    </select>
+  </div>
+
+  <button class="btn-primary" id="run-btn">Run Cut</button>
+  <div class="status" id="run-status"></div>
+</div>
+
+<!-- ── result panel ─────────────────────────────────────── -->
+<div class="panel hidden" id="result-panel">
+  <div class="panel-title">Result</div>
+
+  <div class="waveform-wrap" style="margin-top:0">
+    <div id="result-waveform"></div>
+    <div class="waveform-controls" style="margin-top:8px">
+      <button class="play-btn" id="result-play-btn">▶</button>
+      <span class="time-lbl" id="result-time">0:00 / 0:00</span>
+    </div>
+  </div>
+
+  <div class="result-actions">
+    <a class="dl-btn" id="dl-btn" download="edited.mp3">↓ Download</a>
+    <button class="save-btn" id="save-btn">↑ Save to Cloud</button>
+  </div>
+  <div class="status" id="save-status"></div>
+</div>
+
+<script type="module">
+  import WaveSurfer from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/wavesurfer.esm.js';
+  import RegionsPlugin from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/regions.esm.js';
+
+  const BASE = '/test-edit';
+
+  /* ── state ───────────────────────────────────────────── */
+  let ws             = null;   // source WaveSurfer
+  let wsResult       = null;   // result WaveSurfer
+  let regions        = null;   // Regions plugin instance
+  let currentOp      = 'cut';
+  let resultBlobObj  = null;   // actual Blob from last Run (sent to /save)
+  let resultBlob     = null;   // blob URL for preview / download
+  let resultFmt      = 'mp3';  // format of last result
+
+  /* ── DOM refs ────────────────────────────────────────── */
+  const loadBtn      = document.getElementById('load-btn');
+  const playBtn      = document.getElementById('play-btn');
+  const srcTime      = document.getElementById('src-time');
+  const regionHint   = document.getElementById('region-hint');
+  const srcStatus    = document.getElementById('src-status');
+  const srcControls  = document.getElementById('src-controls');
+  const runBtn       = document.getElementById('run-btn');
+  const runStatus    = document.getElementById('run-status');
+  const resultPanel  = document.getElementById('result-panel');
+  const resultPbBtn  = document.getElementById('result-play-btn');
+  const resultTime   = document.getElementById('result-time');
+  const dlBtn        = document.getElementById('dl-btn');
+  const saveBtn      = document.getElementById('save-btn');
+  const saveStatus   = document.getElementById('save-status');
+
+  /* ── helpers ─────────────────────────────────────────── */
+  const fmt = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+
+  function setStatus(el, msg, cls) {
+    el.textContent = msg;
+    el.className = `status ${cls}`;
+  }
+
+  /* ── source type toggle ──────────────────────────────── */
+  document.querySelectorAll('input[name="src_type"]').forEach(r =>
+    r.addEventListener('change', () => {
+      const file = document.querySelector('input[name="src_type"]:checked').value === 'file';
+      document.getElementById('src_url_field').classList.toggle('hidden', file);
+      document.getElementById('src_file_field').classList.toggle('hidden', !file);
+    })
+  );
+
+  document.querySelectorAll('input[name="src2_type"]').forEach(r =>
+    r.addEventListener('change', () => {
+      const file = document.querySelector('input[name="src2_type"]:checked').value === 'file';
+      document.getElementById('src2_url_field').classList.toggle('hidden', file);
+      document.getElementById('src2_file_field').classList.toggle('hidden', !file);
+    })
+  );
+
+  /* ── operation tabs ──────────────────────────────────── */
+  const opLabels = { cut:'Cut', fade:'Fade', loop:'Loop', split:'Split', mix:'Mix', overlay:'Overlay', eq:'EQ', warmth:'AI Warmth', enhance:'Style Enhance' };
+
+  document.querySelectorAll('.op-tab').forEach(tab =>
+    tab.addEventListener('click', () => {
+      currentOp = tab.dataset.op;
+      document.querySelectorAll('.op-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.op-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(`panel-${currentOp}`).classList.add('active');
+
+      const needsSrc2 = ['mix','overlay'].includes(currentOp);
+      document.getElementById('source2-panel').classList.toggle('hidden', !needsSrc2);
+      document.getElementById('src2-label').textContent = currentOp === 'overlay' ? 'Overlay Track' : 'Second Track';
+
+      runBtn.textContent = `Run ${opLabels[currentOp]}`;
+      updateRegion();
+    })
+  );
+
+  /* ── region helpers ──────────────────────────────────── */
+  function getRegion() {
+    return regions?.getRegions()[0] ?? null;
+  }
+
+  function syncRegionToInputs(r) {
+    if (!r) return;
+    if (currentOp === 'cut') {
+      document.getElementById('cut_start_ms').value = Math.round(r.start * 1000);
+      document.getElementById('cut_end_ms').value   = Math.round(r.end   * 1000);
+      regionHint.textContent = `Region: ${fmt(r.start)} – ${fmt(r.end)}`;
+    } else if (currentOp === 'split') {
+      document.getElementById('split_ms').value = Math.round(r.end * 1000);
+      regionHint.textContent = `Split at: ${fmt(r.end)}`;
+    }
+  }
+
+  function updateRegion() {
+    if (!regions || !ws) return;
+    regions.clearRegions();
+    regionHint.textContent = '';
+
+    if (currentOp === 'cut' || currentOp === 'split') {
+      const dur = ws.getDuration();
+      const start = currentOp === 'cut' ? dur * 0.1 : 0;
+      const end   = currentOp === 'cut' ? dur * 0.6 : dur * 0.5;
+      const r = regions.addRegion({
+        start, end,
+        color: 'rgba(124,58,237,0.2)',
+        drag: true,
+        resize: true,
+      });
+      syncRegionToInputs(r);
+    }
+  }
+
+  /* ── load source ─────────────────────────────────────── */
+  loadBtn.addEventListener('click', async () => {
+    loadBtn.disabled = true;
+    setStatus(srcStatus, 'Loading…', 'busy');
+
+    try {
+      const srcType = document.querySelector('input[name="src_type"]:checked').value;
+      let audioUrl;
+
+      if (srcType === 'url') {
+        audioUrl = document.getElementById('src_url').value.trim();
+        if (!audioUrl) throw new Error('Enter a URL first');
+      } else {
+        const fi = document.getElementById('src_file').files[0];
+        if (!fi) throw new Error('Select a file first');
+        audioUrl = URL.createObjectURL(fi);
+      }
+
+      // destroy previous instance
+      if (ws) { ws.destroy(); ws = null; regions = null; }
+
+      document.getElementById('waveform-ph')?.remove();
+      srcControls.classList.remove('hidden');
+      playBtn.disabled = true;
+
+      regions = RegionsPlugin.create();
+      ws = WaveSurfer.create({
+        container: '#waveform',
+        waveColor: '#6d28d9',
+        progressColor: '#a78bfa',
+        cursorColor: '#c4b5fd',
+        height: 80,
+        plugins: [regions],
+      });
+
+      ws.on('ready', () => {
+        const dur = ws.getDuration();
+        playBtn.disabled = false;
+        srcTime.textContent = `0:00 / ${fmt(dur)}`;
+        setStatus(srcStatus, `Loaded — ${fmt(dur)}`, 'ok');
+
+        // set sensible defaults for time inputs
+        document.getElementById('cut_end_ms').value         = Math.round(dur * 1000);
+        document.getElementById('split_ms').value           = Math.round(dur * 500);
+        document.getElementById('overlay_position_ms').value = Math.round(Math.min(5000, dur * 200));
+
+        updateRegion();
+      });
+
+      ws.on('timeupdate', t => { srcTime.textContent = `${fmt(t)} / ${fmt(ws.getDuration())}`; });
+      ws.on('finish', () => { playBtn.textContent = '▶'; });
+
+      regions.on('region-updated', r => syncRegionToInputs(r));
+
+      ws.load(audioUrl);
+    } catch (e) {
+      setStatus(srcStatus, `Error: ${e.message}`, 'error');
+    } finally {
+      loadBtn.disabled = false;
+    }
+  });
+
+  /* ── sync typed inputs → region ──────────────────────── */
+  ['cut_start_ms','cut_end_ms','split_ms'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', () => {
+      const r = getRegion();
+      if (!r) return;
+      if (id === 'cut_start_ms') r.setOptions({ start: Number(document.getElementById('cut_start_ms').value) / 1000 });
+      if (id === 'cut_end_ms')   r.setOptions({ end:   Number(document.getElementById('cut_end_ms').value)   / 1000 });
+      if (id === 'split_ms')     r.setOptions({ end:   Number(document.getElementById('split_ms').value)     / 1000 });
+    });
+  });
+
+  /* ── play/pause source ───────────────────────────────── */
+  playBtn.addEventListener('click', () => {
+    if (!ws) return;
+    ws.playPause();
+    playBtn.textContent = ws.isPlaying() ? '⏸' : '▶';
+  });
+
+  /* ── play/pause result ───────────────────────────────── */
+  resultPbBtn.addEventListener('click', () => {
+    if (!wsResult) return;
+    wsResult.playPause();
+    resultPbBtn.textContent = wsResult.isPlaying() ? '⏸' : '▶';
+  });
+
+  /* ── build FormData ──────────────────────────────────── */
+  function buildFD(op) {
+    const fd = new FormData();
+    fd.append('output_format', document.getElementById('output_format').value);
+
+    if (['mix','overlay'].includes(op)) {
+      // source 1
+      if (document.querySelector('input[name="src_type"]:checked').value === 'url')
+        fd.append('url1', document.getElementById('src_url').value.trim());
+      else {
+        const f = document.getElementById('src_file').files[0];
+        if (f) fd.append('file1', f);
+      }
+      // source 2
+      if (document.querySelector('input[name="src2_type"]:checked').value === 'url')
+        fd.append('url2', document.getElementById('src2_url').value.trim());
+      else {
+        const f = document.getElementById('src2_file').files[0];
+        if (f) fd.append('file2', f);
+      }
+    } else {
+      if (document.querySelector('input[name="src_type"]:checked').value === 'url')
+        fd.append('url', document.getElementById('src_url').value.trim());
+      else {
+        const f = document.getElementById('src_file').files[0];
+        if (f) fd.append('file', f);
+      }
+    }
+
+    // op-specific params
+    if (op === 'cut') {
+      fd.append('start_ms', document.getElementById('cut_start_ms').value);
+      fd.append('end_ms',   document.getElementById('cut_end_ms').value);
+    } else if (op === 'fade') {
+      fd.append('fade_in_ms',  document.getElementById('fade_in_ms').value);
+      fd.append('fade_out_ms', document.getElementById('fade_out_ms').value);
+    } else if (op === 'loop') {
+      fd.append('count', document.getElementById('loop_count').value);
+    } else if (op === 'split') {
+      fd.append('split_ms', document.getElementById('split_ms').value);
+    } else if (op === 'overlay') {
+      fd.append('position_ms', document.getElementById('overlay_position_ms').value);
+    } else if (op === 'eq') {
+      fd.append('freq', document.getElementById('eq_freq').value);
+      fd.append('gain', document.getElementById('eq_gain').value);
+      fd.append('q',    document.getElementById('eq_q').value);
+    } else if (op === 'warmth') {
+      const pct = +document.getElementById('warmth_intensity').value;
+      fd.append('intensity', (pct / 100).toFixed(2));
+      fd.append('vocal_mode', document.getElementById('warmth_vocal_mode').checked ? 'true' : 'false');
+    } else if (op === 'enhance') {
+      fd.append('preset',    document.getElementById('enhance_preset').value);
+      fd.append('intensity', (+document.getElementById('enhance_intensity').value / 100).toFixed(2));
+    }
+
+    return fd;
+  }
+
+  /* ── run operation ───────────────────────────────────── */
+  runBtn.addEventListener('click', async () => {
+    runBtn.disabled = true;
+    setStatus(runStatus, 'Processing…', 'busy');
+    resultPanel.classList.add('hidden');
+
+    try {
+      const res = await fetch(`${BASE}/${currentOp}`, { method: 'POST', body: buildFD(currentOp) });
+
+      if (!res.ok) {
+        let msg = res.statusText;
+        try { const j = await res.json(); msg = Array.isArray(j.detail) ? j.detail.map(e=>e.msg).join(', ') : j.detail; } catch {}
+        throw new Error(msg);
+      }
+
+      const blob = await res.blob();
+      resultFmt = document.getElementById('output_format').value;
+
+      if (resultBlob) URL.revokeObjectURL(resultBlob);
+      resultBlobObj = blob;                          // keep Blob for /save
+      resultBlob    = URL.createObjectURL(blob);
+
+      // update download link
+      dlBtn.href     = resultBlob;
+      dlBtn.download = `edited_${currentOp}.${resultFmt}`;
+
+      // show result panel
+      resultPanel.classList.remove('hidden');
+      saveStatus.textContent = '';
+      saveStatus.className = 'status';
+
+      // init result wavesurfer
+      if (wsResult) { wsResult.destroy(); wsResult = null; }
+      wsResult = WaveSurfer.create({
+        container: '#result-waveform',
+        waveColor: '#065f46',
+        progressColor: '#34d399',
+        cursorColor: '#a7f3d0',
+        height: 80,
+      });
+      wsResult.on('ready', () => {
+        const dur = wsResult.getDuration();
+        resultTime.textContent = `0:00 / ${fmt(dur)}`;
+        resultPbBtn.textContent = '▶';
+      });
+      wsResult.on('timeupdate', t => { resultTime.textContent = `${fmt(t)} / ${fmt(wsResult.getDuration())}`; });
+      wsResult.on('finish', () => { resultPbBtn.textContent = '▶'; });
+      wsResult.load(resultBlob);
+
+      setStatus(runStatus, '✓ Done — listen or download below', 'ok');
+    } catch (e) {
+      setStatus(runStatus, `Error: ${e.message}`, 'error');
+    } finally {
+      runBtn.disabled = false;
+    }
+  });
+
+  /* ── helpers for save metadata ──────────────────────── */
+  function getOpParams(op) {
+    if (op === 'cut')     return { start_ms: +document.getElementById('cut_start_ms').value, end_ms: +document.getElementById('cut_end_ms').value };
+    if (op === 'fade')    return { fade_in_ms: +document.getElementById('fade_in_ms').value, fade_out_ms: +document.getElementById('fade_out_ms').value };
+    if (op === 'loop')    return { count: +document.getElementById('loop_count').value };
+    if (op === 'split')   return { split_ms: +document.getElementById('split_ms').value };
+    if (op === 'eq')      return { freq: +document.getElementById('eq_freq').value, gain: +document.getElementById('eq_gain').value, q: +document.getElementById('eq_q').value };
+    if (op === 'overlay') return { source_url_2: document.getElementById('src2_url').value.trim() || 'file_upload', position_ms: +document.getElementById('overlay_position_ms').value };
+    if (op === 'mix')     return { source_url_2: document.getElementById('src2_url').value.trim() || 'file_upload' };
+    if (op === 'warmth')  return { intensity: +(+document.getElementById('warmth_intensity').value / 100).toFixed(2), vocal_mode: document.getElementById('warmth_vocal_mode').checked };
+    if (op === 'enhance') return { preset: document.getElementById('enhance_preset').value, intensity: +(+document.getElementById('enhance_intensity').value / 100).toFixed(2) };
+    return {};
+  }
+
+  /* ── warmth slider + preset buttons ─────────────────── */
+  document.getElementById('warmth_intensity').addEventListener('input', e => {
+    document.getElementById('warmth_intensity_label').textContent = `${e.target.value}%`;
+  });
+
+  document.querySelectorAll('.warmth-preset-btn').forEach(btn =>
+    btn.addEventListener('click', () => {
+      const v = btn.dataset.intensity;
+      document.getElementById('warmth_intensity').value = v;
+      document.getElementById('warmth_intensity_label').textContent = `${v}%`;
+    })
+  );
+
+  /* ── enhance preset cards + slider ──────────────────── */
+  document.getElementById('enhance_intensity').addEventListener('input', e => {
+    document.getElementById('enhance_intensity_label').textContent = `${e.target.value}%`;
+  });
+
+  document.querySelectorAll('.enhance-card').forEach(card =>
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.enhance-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      document.getElementById('enhance_preset').value = card.dataset.preset;
+    })
+  );
+
+  function getSrcUrl() {
+    if (document.querySelector('input[name="src_type"]:checked').value === 'url')
+      return document.getElementById('src_url').value.trim();
+    return document.getElementById('src_file').files[0]?.name || 'file_upload';
+  }
+
+  /* ── save to cloud ───────────────────────────────────── */
+  saveBtn.addEventListener('click', async () => {
+    const userId    = document.getElementById('user_id').value.trim();
+    const projectId = document.getElementById('project_id').value.trim();
+    if (!userId || !projectId) {
+      setStatus(saveStatus, 'Error: fill in User ID and Project ID at the top', 'error');
+      return;
+    }
+    if (!resultBlobObj) {
+      setStatus(saveStatus, 'Error: run an operation first', 'error');
+      return;
+    }
+
+    saveBtn.disabled = true;
+    setStatus(saveStatus, 'Uploading…', 'busy');
+
+    try {
+      // Send the result blob the browser already has — no re-processing on the server
+      const fd = new FormData();
+      fd.append('audio_file',        resultBlobObj, `result.${resultFmt}`);
+      fd.append('operation',         currentOp);
+      fd.append('user_id',           userId);
+      fd.append('project_id',        projectId);
+      fd.append('operation_params',  JSON.stringify(getOpParams(currentOp)));
+      fd.append('source_url',        getSrcUrl());
+      fd.append('output_format',     resultFmt);
+
+      const res = await fetch(`${BASE}/save`, { method: 'POST', body: fd });
+      if (!res.ok) {
+        let msg = res.statusText;
+        try { const j = await res.json(); msg = Array.isArray(j.detail) ? j.detail.map(e=>e.msg).join(', ') : j.detail; } catch {}
+        throw new Error(msg);
+      }
+
+      const j = await res.json();
+      const filename = j.output_url.split('/').pop().split('?')[0];
+      saveStatus.innerHTML = `✓ Saved — <a href="${j.output_url}" target="_blank" style="color:#4ade80;text-decoration:underline">${filename}</a> &nbsp;(${j.output_duration}s)`;
+      saveStatus.className = 'status ok';
+    } catch (e) {
+      setStatus(saveStatus, `Error: ${e.message}`, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
