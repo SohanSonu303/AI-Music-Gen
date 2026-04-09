@@ -89,8 +89,18 @@ def submit_and_poll_task(
                 )
 
             elif operation == "inpaint":
+                logger.info(
+                    "Downloading source audio for inpaint: stable_task_id=%s url=%s",
+                    stable_task_id, params["audio_url"],
+                )
+                audio_resp = client.get(params["audio_url"])
+                audio_resp.raise_for_status()
+
+                with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+                    tmp.write(audio_resp.content)
+                    tmp_path = tmp.name
+
                 form_data: dict = {
-                    "audio_url": params["audio_url"],
                     "prompt": params["prompt"],
                     "replace_start_at": params["replace_start_at"],
                     "replace_end_at": params["replace_end_at"],
@@ -99,24 +109,48 @@ def submit_and_poll_task(
                 for field in ("lyrics", "lyrics_section_to_replace", "gender"):
                     if params.get(field):
                         form_data[field] = params[field]
-                response = client.post(
-                    f"{MUSICGPT_BASE_URL}/inpaint",
-                    headers=form_headers,
-                    data=form_data,
-                )
+
+                try:
+                    with open(tmp_path, "rb") as f:
+                        response = client.post(
+                            f"{MUSICGPT_BASE_URL}/inpaint",
+                            headers=form_headers,
+                            data=form_data,
+                            files={"audio_file": ("audio.mp3", f, "audio/mpeg")},
+                        )
+                finally:
+                    os.remove(tmp_path)
+                    logger.info("Removed temp inpaint audio file: path=%s", tmp_path)
 
             elif operation == "extend":
+                logger.info(
+                    "Downloading source audio for extend: stable_task_id=%s url=%s",
+                    stable_task_id, params["source_audio_url"],
+                )
+                audio_resp = client.get(params["source_audio_url"])
+                audio_resp.raise_for_status()
+
+                with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+                    tmp.write(audio_resp.content)
+                    tmp_path = tmp.name
+
                 form_data = {
-                    "audio_url": params["source_audio_url"],
                     "prompt": params["combined_prompt"],
                     "extend_after": params["extend_after"],
                     "num_outputs": 2,
                 }
-                response = client.post(
-                    f"{MUSICGPT_BASE_URL}/extend",
-                    headers=form_headers,
-                    data=form_data,
-                )
+
+                try:
+                    with open(tmp_path, "rb") as f:
+                        response = client.post(
+                            f"{MUSICGPT_BASE_URL}/extend",
+                            headers=form_headers,
+                            data=form_data,
+                            files={"audio_file": ("audio.mp3", f, "audio/mpeg")},
+                        )
+                finally:
+                    os.remove(tmp_path)
+                    logger.info("Removed temp extend audio file: path=%s", tmp_path)
 
             elif operation == "remix":
                 logger.info(

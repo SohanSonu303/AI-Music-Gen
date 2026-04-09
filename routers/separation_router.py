@@ -2,6 +2,7 @@ import uuid
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from models.separation_model import SeparationResponse
 from services.separation_service import UPLOAD_DIR, process_audio_background
 from supabase_client import supabase
@@ -33,13 +34,15 @@ async def separate_audio(
         with open(input_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        record = supabase.table("audio_separations").insert({
-            "id": job_id,
-            "user_id": user_id,
-            "project_id": project_id,
-            "original_filename": file.filename,
-            "status": "PENDING",
-        }).execute()
+        record = await run_in_threadpool(
+            lambda: supabase.table("audio_separations").insert({
+                "id": job_id,
+                "user_id": user_id,
+                "project_id": project_id,
+                "original_filename": file.filename,
+                "status": "PENDING",
+            }).execute()
+        )
 
         background_tasks.add_task(
             process_audio_background,
