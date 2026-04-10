@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from typing import List
 from models.extend_model import ExtendCreate
 from models.music_model import MusicResponse
@@ -12,21 +12,32 @@ router = APIRouter(prefix="/extend", tags=["Extend"])
 
 
 @router.post("/extend", response_model=List[MusicResponse])
-async def extend_music(extend: ExtendCreate):
+async def extend_music(extend: ExtendCreate, background_tasks: BackgroundTasks):
     logger.info("Extend request: source_id=%s", extend.id)
     try:
         records, celery_params = await MusicService.extend_music(extend)
         stable_task_id = records[0]["task_id"]
         record_ids = [r["id"] for r in records]
-        submit_and_poll_task.apply_async(
-            args=["extend", stable_task_id, record_ids, celery_params],
-            queue="musicgpt_album",
-        )
+        try:
+            submit_and_poll_task.apply_async(
+                args=["extend", stable_task_id, record_ids, celery_params],
+                queue="musicgpt_album",
+            )
+        except Exception as queue_exc:
+            logger.error("Extend queueing failed: stable_task_id=%s error=%s", stable_task_id, queue_exc)
+            MusicService.mark_task_failed(stable_task_id, f"Queueing failed: {queue_exc}")
+            raise HTTPException(
+                status_code=503,
+                detail="Queue unavailable (Redis/Celery). Try again after restarting Redis and Celery worker.",
+            )
+        background_tasks.add_task(MusicService.fail_if_stale_queued, stable_task_id)
         logger.info(
             "Extend job queued to Celery: stable_task_id=%s source_id=%s",
             stable_task_id, extend.id,
         )
         return records
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

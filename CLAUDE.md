@@ -77,6 +77,13 @@ For full user flow diagrams, sequence flows, and file responsibility breakdown s
 4. Enqueues `submit_and_poll_task(operation="remix", ...)` with `source_audio_url`
 5. Celery task downloads audio to temp file, calls MusicGPT `POST /Remix` (multipart/form-data), deletes temp file; updates rows + polls; `conversionType=REMIX`
 
+**Sound generation flow:**
+1. `POST /sound_generator/` validates `user_id`, calls MusicGPT `POST /sound_generator`, inserts 1 row into `sound_generations` with `type='sfx'`, returns immediately
+2. One `BackgroundTask` polls MusicGPT `GET /byId` (`conversionType=SOUND_GENERATOR`) every 5s independently
+3. On `COMPLETED`: downloads the generated audio, uploads it to Supabase Storage at `{SFX_BUCKET_NAME}/{user_id}/{task_id}/{conversion_id}.mp3` or `.wav`, and updates the `sound_generations` row with the public storage URL
+4. `GET /sound_generator/?user_id=<id>&task_id=<id>` fetches the persisted SFX row from `sound_generations`
+5. `GET /sound_generator/status?user_id=<id>&task_id=<id>` returns a debug payload (`is_completed`, `has_audio`, `ready_for_download`, and `error_message`) for quick troubleshooting
+
 **Prompt validation (all generation endpoints):**
 - `POST /music/generateMusic`, `POST /inpaint/inpaint`, `POST /prompt/quick-idea`, `POST /prompt/enhance` all return `422` if the input `prompt` exceeds 280 characters (MusicGPT limit)
 - `submit_and_poll_task` flattens multi-line prompts (joins whitespace with spaces) before sending to MusicGPT for the `music` operation
@@ -241,3 +248,7 @@ Worker command: `celery -A celery_app worker -Q musicgpt_album --concurrency=1 -
 `music_metadata_id_2` (UUID, nullable — second conversion's music_metadata row),
 `task_id` (text, nullable), `status` (PENDING/IN_QUEUE/COMPLETED/FAILED/ERROR),
 `energy_level` (int 1–10), `created_at`
+
+**`sound_generations` table**
+`user_id`, `created_at`, `user_name`, `task_id`, `project_id`, `audio_url`, `type`,
+`status`, `updated_at`, `error_message`, `conversion_id`

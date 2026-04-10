@@ -826,3 +826,42 @@ Only tracks that are NOT already `COMPLETED` will be re-submitted. Already compl
 `GET /album/user/a1b2c3d4-e5f6-7890-abcd-ef1234567890`
 
 Returns a list of all albums with their tracks, ordered by `created_at` descending.
+
+---
+
+## Image To Song
+
+All requests go to `POST /image-to-song/generate` as `multipart/form-data`.
+Required fields: `project_id`, `user_id`, `user_name`, `user_email`, and exactly one of `image_url` or `image_file`.
+
+### Option 1: Public Image URL (multipart form)
+
+```bash
+curl --request POST "http://localhost:8000/image-to-song/generate" \
+  --form "project_id=proj_image_001" \
+  --form "user_id=a1b2c3d4-e5f6-7890-abcd-ef1234567890" \
+  --form "user_name=user1" \
+  --form "user_email=user1@example.com" \
+  --form "image_url=https://mybucket.s3.amazonaws.com/image.png" \
+  --form "prompt=Generate a relaxing acoustic track inspired by this scene." \
+  --form "lyrics=Let the colors of the sunset fill your heart." \
+  --form "make_instrumental=false" \
+  --form "vocal_only=false" \
+  --form "key=C major" \
+  --form "bpm=120" \
+  --form "voice_id=voice_123"
+```
+
+### Option 2: Local Image Upload (multipart file)
+
+```bash
+curl --request POST "http://localhost:8000/image-to-song/generate" \
+  --form "project_id=proj_image_002" \
+  --form "user_id=a1b2c3d4-e5f6-7890-abcd-ef1234567890" \
+  --form "user_name=user1" \
+  --form "user_email=user1@example.com" \
+  --form "image_file=@/absolute/path/to/image.png" \
+  --form "prompt=Turn this visual into a cinematic track with soft strings and piano." \
+  --form "make_instrumental=true" \
+  --form "bpm=0"
+```
