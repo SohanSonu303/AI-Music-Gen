@@ -3,6 +3,7 @@ import os
 import asyncio
 from uuid import uuid4
 from datetime import datetime, timezone
+from fastapi.concurrency import run_in_threadpool
 from models.music_model import MusicCreate, InpaintCreate
 from models.image_to_song_model import ImageToSongCreate
 from models.extend_model import ExtendCreate
@@ -45,7 +46,7 @@ class MusicService:
             {**base_record, "conversion_id": f"{stable_task_id}_1"},
             {**base_record, "conversion_id": f"{stable_task_id}_2"},
         ]
-        db_response = supabase.table("music_metadata").insert(records).execute()
+        db_response = await run_in_threadpool(lambda: supabase.table("music_metadata").insert(records).execute())
         inserted = db_response.data
         logger.info(
             "Pre-inserted 2 QUEUED music_metadata rows: stable_task_id=%s type=%s",
@@ -66,7 +67,7 @@ class MusicService:
 
     @staticmethod
     async def inpaint_music(data: InpaintCreate) -> tuple[list[dict], dict]:
-        source_resp = supabase.table("music_metadata").select("*").eq("id", data.id).single().execute()
+        source_resp = await run_in_threadpool(lambda: supabase.table("music_metadata").select("*").eq("id", data.id).single().execute())
         source = source_resp.data
         if not source:
             raise ValueError(f"music_metadata row not found: id={data.id}")
@@ -89,7 +90,7 @@ class MusicService:
         if data.num_outputs > 1:
             records.append({**base_record, "conversion_id": f"{stable_task_id}_2"})
 
-        db_response = supabase.table("music_metadata").insert(records).execute()
+        db_response = await run_in_threadpool(lambda: supabase.table("music_metadata").insert(records).execute())
         inserted = db_response.data
         logger.info(
             "Pre-inserted %d QUEUED inpaint music_metadata rows: stable_task_id=%s source_id=%s",
@@ -110,7 +111,7 @@ class MusicService:
 
     @staticmethod
     async def extend_music(data: ExtendCreate) -> tuple[list[dict], dict]:
-        source_resp = supabase.table("music_metadata").select("*").eq("id", str(data.id)).single().execute()
+        source_resp = await run_in_threadpool(lambda: supabase.table("music_metadata").select("*").eq("id", str(data.id)).single().execute())
         source = source_resp.data
         if not source:
             raise ValueError(f"music_metadata row not found: id={data.id}")
@@ -141,7 +142,7 @@ class MusicService:
             {**base_record, "conversion_id": f"{stable_task_id}_1"},
             {**base_record, "conversion_id": f"{stable_task_id}_2"},
         ]
-        db_response = supabase.table("music_metadata").insert(records).execute()
+        db_response = await run_in_threadpool(lambda: supabase.table("music_metadata").insert(records).execute())
         inserted = db_response.data
         logger.info(
             "Pre-inserted 2 QUEUED extend music_metadata rows: stable_task_id=%s source_id=%s",
@@ -157,7 +158,7 @@ class MusicService:
 
     @staticmethod
     async def remix_music(data: RemixCreate) -> tuple[list[dict], dict]:
-        source_resp = supabase.table("music_metadata").select("*").eq("id", str(data.id)).single().execute()
+        source_resp = await run_in_threadpool(lambda: supabase.table("music_metadata").select("*").eq("id", str(data.id)).single().execute())
         source = source_resp.data
         if not source:
             raise ValueError(f"music_metadata row not found: id={data.id}")
@@ -184,7 +185,7 @@ class MusicService:
             {**base_record, "conversion_id": f"{stable_task_id}_1"},
             {**base_record, "conversion_id": f"{stable_task_id}_2"},
         ]
-        db_response = supabase.table("music_metadata").insert(records).execute()
+        db_response = await run_in_threadpool(lambda: supabase.table("music_metadata").insert(records).execute())
         inserted = db_response.data
         logger.info(
             "Pre-inserted 2 QUEUED remix music_metadata rows: stable_task_id=%s source_id=%s",
@@ -216,7 +217,7 @@ class MusicService:
             "music_style": None,
         }
         records = [{**base_record, "conversion_id": f"{stable_task_id}_1"}]
-        db_response = supabase.table("music_metadata").insert(records).execute()
+        db_response = await run_in_threadpool(lambda: supabase.table("music_metadata").insert(records).execute())
         inserted = db_response.data
         logger.info(
             "Pre-inserted 1 QUEUED image_to_song music_metadata row: stable_task_id=%s",
@@ -263,11 +264,8 @@ class MusicService:
             elapsed_time += check_interval
 
             # Check the current status of the task
-            resp = (
-                supabase.table("music_metadata")
-                .select("status")
-                .eq("task_id", task_id)
-                .execute()
+            resp = await run_in_threadpool(
+                lambda: supabase.table("music_metadata").select("status").eq("task_id", task_id).execute()
             )
             rows = resp.data or []
             if not rows:  # If no rows are found, exit immediately
@@ -285,7 +283,8 @@ class MusicService:
             task_id,
             timeout_seconds,
         )
-        MusicService.mark_task_failed(
+        await run_in_threadpool(
+            MusicService.mark_task_failed,
             task_id,
             f"Task stuck in QUEUED for more than {timeout_seconds} seconds. "
             "Worker may be offline or queue unavailable.",

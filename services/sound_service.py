@@ -4,6 +4,7 @@ import os
 from urllib.parse import urlparse
 
 import httpx
+from fastapi.concurrency import run_in_threadpool
 
 from models.sound_model import SoundCreate
 from supabase_client import supabase
@@ -84,7 +85,7 @@ class SoundService:
             "error_message": None,
         }
 
-        db_response = supabase.table(SOUND_GENERATIONS_TABLE).insert(record).execute()
+        db_response = await run_in_threadpool(lambda: supabase.table(SOUND_GENERATIONS_TABLE).insert(record).execute())
         logger.info("Inserted sound_generations row for task_id=%s", result["task_id"])
         return db_response.data[0]
 
@@ -157,22 +158,29 @@ class SoundService:
                         file_extension = SoundService._get_file_extension(audio_source_url)
                         content_type = SoundService._get_content_type(file_extension)
                         file_path = f"{user_id}/{task_id}/{conversion_id}.{file_extension}"
-                        supabase.storage.from_(SFX_BUCKET_NAME).upload(
-                            file_path,
-                            audio_response.content,
-                            {"content-type": content_type},
+                        audio_content = audio_response.content
+                        await run_in_threadpool(
+                            lambda: supabase.storage.from_(SFX_BUCKET_NAME).upload(
+                                file_path,
+                                audio_content,
+                                {"content-type": content_type},
+                            )
                         )
                         logger.info("Uploaded sound asset to storage: path=%s", file_path)
 
-                        storage_url = supabase.storage.from_(SFX_BUCKET_NAME).get_public_url(file_path)
+                        storage_url = await run_in_threadpool(
+                            lambda: supabase.storage.from_(SFX_BUCKET_NAME).get_public_url(file_path)
+                        )
                         update_payload["audio_url"] = storage_url
                     else:
                         update_payload["error_message"] = conversion.get("message") or "Sound generation failed"
 
-                    supabase.table(SOUND_GENERATIONS_TABLE).update(update_payload).eq(
-                        "task_id",
-                        task_id,
-                    ).eq("conversion_id", conversion_id).execute()
+                    await run_in_threadpool(
+                        lambda: supabase.table(SOUND_GENERATIONS_TABLE).update(update_payload).eq(
+                            "task_id",
+                            task_id,
+                        ).eq("conversion_id", conversion_id).execute()
+                    )
                     logger.info(
                         "Sound DB updated: task_id=%s conversion_id=%s status=%s",
                         task_id,
@@ -187,15 +195,17 @@ class SoundService:
                     task_id,
                     conversion_id,
                 )
-                supabase.table(SOUND_GENERATIONS_TABLE).update(
-                    {
-                        "status": "FAILED",
-                        "error_message": f"Polling timed out after {MAX_POLL_DURATION_SECONDS} seconds",
-                    }
-                ).eq(
-                    "task_id",
-                    task_id,
-                ).eq("conversion_id", conversion_id).execute()
+                await run_in_threadpool(
+                    lambda: supabase.table(SOUND_GENERATIONS_TABLE).update(
+                        {
+                            "status": "FAILED",
+                            "error_message": f"Polling timed out after {MAX_POLL_DURATION_SECONDS} seconds",
+                        }
+                    ).eq(
+                        "task_id",
+                        task_id,
+                    ).eq("conversion_id", conversion_id).execute()
+                )
 
         except Exception as e:
             logger.error(
@@ -204,15 +214,17 @@ class SoundService:
                 conversion_id,
                 e,
             )
-            supabase.table(SOUND_GENERATIONS_TABLE).update(
-                {
-                    "status": "FAILED",
-                    "error_message": str(e),
-                }
-            ).eq(
-                "task_id",
-                task_id,
-            ).eq("conversion_id", conversion_id).execute()
+            await run_in_threadpool(
+                lambda: supabase.table(SOUND_GENERATIONS_TABLE).update(
+                    {
+                        "status": "FAILED",
+                        "error_message": str(e),
+                    }
+                ).eq(
+                    "task_id",
+                    task_id,
+                ).eq("conversion_id", conversion_id).execute()
+            )
 
     @staticmethod
     def _get_file_extension(audio_url: str) -> str:

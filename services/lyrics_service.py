@@ -1,6 +1,7 @@
 import os
 import logging
 import httpx
+from fastapi.concurrency import run_in_threadpool
 from models.lyrics_model import LyricsCreate
 from supabase_client import supabase
 
@@ -59,6 +60,6 @@ class LyricsService:
             "tone": data.tone,
         }
 
-        db_response = supabase.table(LYRICS_TABLE).insert(record).execute()
+        db_response = await run_in_threadpool(lambda: supabase.table(LYRICS_TABLE).insert(record).execute())
         logger.info("Inserted %s row for user_id=%s", LYRICS_TABLE, data.user_id)
         return db_response.data[0]

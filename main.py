@@ -13,6 +13,7 @@ from routers import (
     queue_router,
     separation_router,
     sound_router,
+    audio_edit_test_router
 )
 
 logging.basicConfig(
