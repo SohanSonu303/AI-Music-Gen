@@ -195,6 +195,42 @@ Queue diagnostics:
 
 ## Features
 
+### AIME — Automated AI Music Editor
+
+Beat-accurate, AI-driven audio trimming to a target duration. Upload any MP3/WAV and AIME analyses its BPM, detects structural segments (intro/verse/build/chorus/peak/drop/bridge/outro), scores candidate trim windows, and uses a DeepSeek LLM agent to select the best musical window.
+
+**Key capabilities:**
+- **Natural language intent** — describe what you want ("punchy 30s drop for a DJ mix") and the AI auto-fills all parameters and finds the best matching section in one click
+- **9 energy preferences** — `high_energy`, `climax`, `drop`, `chorus`, `verse`, `build`, `chill`, `outro`, `intro_heavy`
+- **Strictness slider** — Musical (best-sounding window) ↔ Balanced ↔ Precise (exact duration hit)
+- **Beat-synced crossfades** — crossfade length snapped to beat grid (½ beat / 1 beat / 2 beats / 1 bar)
+- **Intelligent loop restructuring** — when target > source, LLM plans a musical segment arrangement (intro→verse→chorus→outro) instead of robotic tiling
+- **Candidate comparison** — all 3 scored candidates shown with scores; manually override the AI pick with one click
+- **A/B comparison** — toggle between original and trimmed audio with position sync and kept/removed region overlays
+- **Preview before committing** — "Find Best Section" shows the AI suggestion on the waveform before any audio is encoded (~1–3s vs 5–15s for full trim)
+
+**Endpoints:** `POST /auto-edit/analyze` · `POST /auto-edit/suggest` · `POST /auto-edit/preview` · `POST /auto-edit/trim` · `POST /auto-edit/save`
+
+Test UI: `GET /test-edit/ui` → ✦ Auto Trim tab
+
+---
+
+### AI Analog Warmth
+
+Adaptive DSP warmth processing — 7-stage pipeline (subsonic cleanup → de-harshness → body EQ → analog saturation → Moog LPF → compression → loudness match) with all parameters derived from spectral analysis of the source audio. Vocal mode available.
+
+**Endpoints:** `POST /test-edit/warmth` · `POST /test-edit/warmth/analyze`
+
+---
+
+### AI Style Enhancer
+
+6 genre presets (lofi / edm / cinematic / pop / chill / vintage) with dry/wet blend, stereo widening, and crest-factor-aware loudness matching.
+
+**Endpoint:** `POST /test-edit/enhance` · `GET /test-edit/enhance/presets`
+
+---
+
 ### Image-to-Song Generation
 
 The `image-to-song` feature allows users to generate music based on an image. Users can upload an image file or provide an image URL, along with optional parameters like prompts, lyrics, and music style preferences. The generated music can be instrumental, vocal, or both.
@@ -254,7 +290,8 @@ AI-Music-Gen/
 ├── thirdpartyapi.md          # MusicGPT API reference
 ├── sample_requests.md        # Example request bodies for all features
 ├── agents/
-│   └── album_agent.py        # LangGraph 4-node planning agent (analyze→plan→prompts→lyrics)
+│   ├── album_agent.py        # LangGraph 4-node planning agent (analyze→plan→prompts→lyrics)
+│   └── auto_edit_agent.py    # AIME: LangGraph window selector + LLM loop arrangement planner
 ├── migrations/
 │   ├── 001_create_albums.sql          # Creates albums + album_tracks tables
 │   ├── 002_add_script_excerpt.sql     # Adds script_excerpt to album_tracks
@@ -279,8 +316,9 @@ AI-Music-Gen/
 │   ├── extend_model.py       # ExtendCreate
 │   ├── remix_model.py        # RemixCreate
 │   ├── image_to_song_model.py # ImageToSongCreate
-│   └── album_model.py        # AlbumCreate, AlbumApprove, AlbumResponse, AlbumTrackResponse, TrackUpdate, TrackReplanRequest
-│   └── sound_model.py        # SoundCreate, SoundResponse
+│   ├── album_model.py        # AlbumCreate, AlbumApprove, AlbumResponse, AlbumTrackResponse, TrackUpdate, TrackReplanRequest
+│   ├── sound_model.py        # SoundCreate, SoundResponse
+│   └── auto_edit_model.py    # AIME: AutoTrimRequest, AutoTrimResponse, CandidateWindow, AudioAnalysis, SegmentInfo
 ├── routers/
 │   ├── project_router.py     # POST /projects/, GET /projects/
 │   ├── music_router.py       # POST /music/generateMusic, POST /music/remix
@@ -290,10 +328,11 @@ AI-Music-Gen/
 │   ├── download_router.py    # GET /download/
 │   ├── queue_router.py       # GET /queue/health
 │   ├── prompt_router.py      # POST /prompt/quick-idea, POST /prompt/enhance
-│   └── sound_router.py       # POST /sound_generator/, GET /sound_generator/, GET /sound_generator/status
+│   ├── sound_router.py       # POST /sound_generator/, GET /sound_generator/, GET /sound_generator/status
 │   ├── image_to_song_router.py # POST /image-to-song/generate
 │   ├── extend_router.py      # POST /extend/extend
-│   └── album_router.py       # POST /album/create, GET /album/{id}, PUT /album/{id}/approve, GET /album/{id}/progress, PUT /album/{id}/tracks/{tid}/replan, PUT /album/{id}/tracks/{tid}/regenerate
+│   ├── album_router.py       # POST /album/create, GET /album/{id}, PUT /album/{id}/approve, GET /album/{id}/progress, PUT /album/{id}/tracks/{tid}/replan, PUT /album/{id}/tracks/{tid}/regenerate
+│   └── auto_edit_router.py   # AIME: POST /auto-edit/analyze|suggest|preview|trim|save
 └── services/
     ├── project_service.py    # Supabase CRUD for projects table
     ├── music_service.py      # Pre-inserts QUEUED music_metadata rows; returns records + Celery params
@@ -301,8 +340,11 @@ AI-Music-Gen/
     ├── separation_service.py # Demucs stem separation, local cleanup, Supabase Storage upload
     ├── download_service.py   # Fetch both music tracks by user_id + task_id from music_metadata
     ├── prompt_service.py     # OpenRouter (DeepSeek) calls for quick idea + prompt enhancer
-    └── sound_service.py      # Sound generation, polling, and Supabase Storage upload
-    └── album_service.py      # Album CRUD, LangGraph agent runner, Celery task dispatch, completion monitor
+    ├── sound_service.py      # Sound generation, polling, and Supabase Storage upload
+    ├── album_service.py      # Album CRUD, LangGraph agent runner, Celery task dispatch, completion monitor
+    ├── warmth_service.py     # AI Analog Warmth: 7-stage DSP pipeline, spectral analysis, adaptive params
+    ├── enhancer_service.py   # AI Style Enhancer: 6 genre presets, stereo widening, dry/wet blend
+    └── auto_edit_service.py  # AIME: analyze_audio, find_candidate_windows, execute_trim, spectral labeling, intelligent loop
 ```
 
 ---

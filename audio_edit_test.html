@@ -314,6 +314,151 @@
     .save-btn:disabled { background: #27272a; border-color: #3f3f46; color: #52525b; cursor: not-allowed; }
 
     .hidden { display: none !important; }
+
+    /* ── AI Auto Trim panel ─────────────────────────────── */
+    .auto-trim-header { margin-bottom: 14px; }
+    .auto-trim-title  { font-size: 1rem; font-weight: 700; background: linear-gradient(90deg,#34d399,#60a5fa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom: 4px; }
+    .auto-trim-sub    { font-size: 0.73rem; color: #71717a; line-height: 1.5; }
+
+    /* ── AIME metadata box ──────────────────────────────── */
+    .aime-meta {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-top: 14px;
+      font-size: 0.76rem;
+    }
+    .aime-meta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; align-items: center; }
+    .aime-item { color: #a1a1aa; }
+    .aime-item strong { color: #e4e4e7; }
+    .aime-badge {
+      padding: 2px 8px; border-radius: 10px; font-size: 0.68rem; font-weight: 600;
+    }
+    .aime-badge-ok   { background: rgba(52,211,153,0.15); color: #34d399; border: 1px solid rgba(52,211,153,0.3); }
+    .aime-badge-warn { background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+    .aime-badge-loop { background: rgba(96,165,250,0.12); color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); }
+    .aime-reasoning  { color: #52525b; font-style: italic; line-height: 1.5; padding-top: 4px; border-top: 1px solid #27272a; margin-top: 4px; }
+    .aime-reasoning span { color: #71717a; }
+    .aime-warn { color: #fbbf24; margin-top: 6px; font-size: 0.72rem; }
+
+    /* ── AIME analyze preview ───────────────────────────── */
+    .aime-analyze-btn {
+      margin-top: 10px;
+      padding: 6px 14px;
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      border-radius: 7px;
+      color: #a1a1aa;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .aime-analyze-btn:hover:not(:disabled) { background: #27272a; color: #e4e4e7; }
+    .aime-analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .aime-analyze-results {
+      margin-top: 12px;
+      padding: 12px 14px;
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 8px;
+      font-size: 0.76rem;
+    }
+    .aime-analyze-header { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .aime-bpm-badge {
+      padding: 3px 10px; border-radius: 10px; font-size: 0.72rem; font-weight: 700;
+      background: rgba(96,165,250,0.12); color: #60a5fa; border: 1px solid rgba(96,165,250,0.3);
+    }
+    /* Segment timeline */
+    .aime-segment-timeline {
+      display: flex;
+      height: 20px;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-bottom: 8px;
+      gap: 1px;
+    }
+    .aime-seg-block {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.58rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      overflow: hidden;
+      white-space: nowrap;
+      border-radius: 3px;
+      cursor: default;
+      transition: opacity 0.15s;
+    }
+    .aime-seg-block:hover { opacity: 0.85; }
+    .aime-seg-intro  { background: rgba(113,113,122,0.35); color: #a1a1aa; }
+    .aime-seg-verse  { background: rgba(167,139,250,0.25); color: #a78bfa; }
+    .aime-seg-build  { background: rgba(251,191,36,0.25);  color: #fbbf24; }
+    .aime-seg-chorus { background: rgba(52,211,153,0.30);  color: #34d399; }
+    .aime-seg-peak   { background: rgba(16,185,129,0.35);  color: #10b981; }
+    .aime-seg-drop   { background: rgba(244,63,94,0.25);   color: #f43f5e; }
+    .aime-seg-bridge { background: rgba(96,165,250,0.20);  color: #60a5fa; }
+    .aime-seg-outro  { background: rgba(113,113,122,0.25); color: #71717a; }
+    /* Candidate cards */
+    .aime-candidates { margin-top: 12px; }
+    .aime-candidates-title { font-size: 0.72rem; color: #71717a; margin-bottom: 6px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    .aime-candidate-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      font-size: 0.75rem;
+      transition: border-color 0.15s;
+      cursor: default;
+    }
+    .aime-candidate-card.chosen {
+      border-color: rgba(52,211,153,0.5);
+      background: rgba(52,211,153,0.05);
+    }
+    .aime-candidate-card.manual-selected {
+      border-color: rgba(96,165,250,0.5);
+      background: rgba(96,165,250,0.05);
+    }
+    .aime-card-rank {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: #27272a;
+      color: #71717a;
+      font-size: 0.7rem;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .aime-candidate-card.chosen   .aime-card-rank { background: rgba(52,211,153,0.2); color: #34d399; }
+    .aime-candidate-card.manual-selected .aime-card-rank { background: rgba(96,165,250,0.2); color: #60a5fa; }
+    .aime-card-info { flex: 1; }
+    .aime-card-time { color: #e4e4e7; font-weight: 600; margin-bottom: 2px; }
+    .aime-card-scores { color: #52525b; font-size: 0.68rem; }
+    .aime-card-labels { display: flex; gap: 4px; flex-wrap: wrap; }
+    .aime-card-label {
+      padding: 1px 6px; border-radius: 6px; font-size: 0.62rem; font-weight: 600;
+      background: #18181b; color: #71717a; border: 1px solid #27272a;
+    }
+    .aime-use-btn {
+      padding: 4px 10px;
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      border-radius: 6px;
+      color: #a1a1aa;
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .aime-use-btn:hover:not(:disabled) { background: #27272a; color: #e4e4e7; border-color: #52525b; }
+    .aime-use-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .aime-use-btn.active { background: rgba(96,165,250,0.15); color: #60a5fa; border-color: rgba(96,165,250,0.4); }
   </style>
 </head>
 <body>
@@ -383,6 +528,7 @@
     <button class="op-tab" data-op="eq">EQ</button>
     <button class="op-tab op-tab-premium" data-op="warmth">✦ AI Warmth</button>
     <button class="op-tab op-tab-premium" data-op="enhance">✦ Style Enhance</button>
+    <button class="op-tab op-tab-premium" data-op="auto_trim">✦ Auto Trim</button>
   </div>
 
   <!-- cut -->
@@ -550,6 +696,134 @@
     </div>
   </div>
 
+  <!-- ai auto trim -->
+  <div class="op-panel" id="panel-auto_trim">
+    <div class="auto-trim-header">
+      <div class="auto-trim-title">✦ AI Auto Trim</div>
+      <div class="auto-trim-sub">Beat-accurate trimming to a target duration. The AI agent analyses BPM &amp; structure, then selects the best musical window — with a logarithmic fade-out applied automatically.</div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Target Duration (seconds)</label>
+        <input type="number" id="auto_trim_target_sec" value="30" min="1" step="1">
+      </div>
+      <div class="field">
+        <label>Energy Preference</label>
+        <select id="auto_trim_energy_pref">
+          <option value="">Auto (balanced)</option>
+          <optgroup label="High Energy">
+            <option value="high_energy">High Energy</option>
+            <option value="climax">Climax / Peak</option>
+            <option value="drop">Drop (EDM)</option>
+          </optgroup>
+          <optgroup label="Melodic / Vocal">
+            <option value="chorus">Chorus / Hook</option>
+            <option value="verse">Verse / Narrative</option>
+            <option value="build">Build / Riser</option>
+          </optgroup>
+          <optgroup label="Low Energy">
+            <option value="chill">Chill / Ambient</option>
+            <option value="intro_heavy">Intro / Opening</option>
+            <option value="outro">Outro / Closing</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+
+    <!-- Phase 12: Strictness slider + Phase 13: Crossfade dropdown -->
+    <div class="two-col" style="margin-top:10px">
+      <div class="field">
+        <label>
+          Strictness — <span id="auto_trim_strictness_label" style="color:#60a5fa;font-weight:600">Balanced</span>
+        </label>
+        <input type="range" id="auto_trim_strictness" class="warmth-slider" min="0" max="100" value="50"
+          title="0 = Musical integrity priority · 100 = Precise duration hit">
+        <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:#52525b;margin-top:2px">
+          <span>Musical</span><span>Balanced</span><span>Precise</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Crossfade Length</label>
+        <select id="auto_trim_xfade_beats">
+          <option value="0.5">Half beat</option>
+          <option value="1" selected>1 beat (default)</option>
+          <option value="2">2 beats</option>
+          <option value="4">1 bar (4 beats)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- User intent + Find Best Section -->
+    <div style="margin-top:12px">
+      <label style="font-size:0.71rem;color:#71717a;display:block;margin-bottom:4px">
+        Describe what you want <span style="color:#52525b">(optional)</span>
+      </label>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <textarea id="auto_trim_user_desc" rows="2"
+          placeholder='e.g. "30 second punchy drop for a DJ mix" or "calm 60s intro for a podcast"'
+          style="flex:1;background:#09090b;border:1px solid #3f3f46;border-radius:7px;color:#e4e4e7;
+                 font-size:0.82rem;padding:7px 10px;resize:vertical;outline:none;
+                 font-family:inherit;transition:border-color 0.15s"
+          onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='#3f3f46'"></textarea>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+          <button class="aime-analyze-btn" id="find-best-btn" style="margin:0;white-space:nowrap;
+            background:linear-gradient(135deg,#4c1d95,#1e3a5f);color:#c4b5fd;border-color:#6d28d9">
+            ✦ Find Best Section
+          </button>
+          <button class="aime-analyze-btn" id="smart-fill-btn" style="margin:0;white-space:nowrap;font-size:0.72rem;padding:4px 10px">
+            Auto-fill params only
+          </button>
+        </div>
+      </div>
+      <div class="status" id="smart-fill-status" style="margin-top:4px"></div>
+    </div>
+
+    <!-- Preview result: shown after Find Best Section -->
+    <div id="aime-preview-result" class="hidden" style="margin-top:12px;background:#0c0c0e;border:1px solid #3f3f46;
+      border-radius:10px;padding:12px 14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:0.68rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:#52525b">
+          AI Suggestion
+        </span>
+        <span id="preview-loop-badge" class="aime-badge aime-badge-loop hidden">needs loop</span>
+        <span id="preview-fallback-badge" class="aime-badge" style="display:none;background:#3f3f46;color:#a1a1aa">fallback</span>
+      </div>
+      <div id="preview-window-line" style="font-size:0.9rem;font-weight:600;color:#e4e4e7;margin-bottom:4px"></div>
+      <div id="preview-labels-line" style="margin-bottom:6px"></div>
+      <div id="preview-reasoning-line" style="font-size:0.75rem;color:#71717a;margin-bottom:10px"></div>
+      <button class="aime-analyze-btn" id="apply-preview-btn"
+        style="margin:0;background:linear-gradient(135deg,#065f46,#1e3a5f);color:#34d399;border-color:#059669;font-weight:600">
+        ▶ Apply This Trim
+      </button>
+      <button class="aime-analyze-btn" id="dismiss-preview-btn"
+        style="margin:0 0 0 8px;font-size:0.72rem;padding:4px 10px">
+        Dismiss
+      </button>
+    </div>
+
+    <!-- v2: Analyze-first button -->
+    <button class="aime-analyze-btn" id="analyze-btn" style="margin-top:10px">Analyze Audio First</button>
+    <div class="status" id="analyze-status"></div>
+
+    <!-- v2: Analysis preview (shown after analyze click) -->
+    <div id="aime-analyze-results" class="aime-analyze-results hidden">
+      <div class="aime-analyze-header">
+        <span id="aime-bpm-badge" class="aime-bpm-badge"></span>
+        <span id="aime-seg-info" class="aime-item"></span>
+        <span id="aime-dur-info" class="aime-item"></span>
+      </div>
+      <div id="aime-segment-timeline" class="aime-segment-timeline"></div>
+      <!-- candidate preview cards (before trim) -->
+      <div id="aime-candidates-preview"></div>
+    </div>
+
+    <!-- v2: Trim result metadata box -->
+    <div id="aime-meta" class="aime-meta hidden"></div>
+
+    <!-- v2: Candidate comparison cards (shown after trim) -->
+    <div id="aime-candidates" class="aime-candidates hidden"></div>
+  </div>
+
   <!-- second source (mix / overlay only) -->
   <div id="source2-panel" class="hidden">
     <hr class="divider">
@@ -583,7 +857,16 @@
 
 <!-- ── result panel ─────────────────────────────────────── -->
 <div class="panel hidden" id="result-panel">
-  <div class="panel-title">Result</div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <div class="panel-title" style="margin:0">Result</div>
+    <!-- Phase 17: A/B toggle (only shown after auto_trim) -->
+    <div id="ab-controls" class="hidden" style="display:flex;align-items:center;gap:8px;margin-left:auto">
+      <span id="ab-mode-badge" class="aime-badge aime-badge-ok" style="font-size:0.7rem">Trimmed</span>
+      <button class="aime-analyze-btn" id="ab-toggle-btn" style="margin:0;padding:4px 12px;font-size:0.76rem">
+        A/B Compare
+      </button>
+    </div>
+  </div>
 
   <div class="waveform-wrap" style="margin-top:0">
     <div id="result-waveform"></div>
@@ -604,7 +887,9 @@
   import WaveSurfer from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/wavesurfer.esm.js';
   import RegionsPlugin from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/regions.esm.js';
 
-  const BASE = '/test-edit';
+  const BASE       = '/test-edit';
+  const AIME_BASE  = '/auto-edit';
+  let lastAnalysisData = null;  // result from /analyze (v2)
 
   /* ── state ───────────────────────────────────────────── */
   let ws             = null;   // source WaveSurfer
@@ -614,6 +899,18 @@
   let resultBlobObj  = null;   // actual Blob from last Run (sent to /save)
   let resultBlob     = null;   // blob URL for preview / download
   let resultFmt      = 'mp3';  // format of last result
+  let lastAimeMeta   = null;   // metadata from last auto_trim run
+  // Phase 17: A/B comparison state
+  let abMode         = 'trimmed';   // 'trimmed' | 'original'
+  let originalBlobUrl = null;       // object URL of source audio for A/B
+
+  /* ── endpoint routing ────────────────────────────────── */
+  function getRunEndpoint(op) {
+    return op === 'auto_trim' ? `${AIME_BASE}/trim` : `${BASE}/${op}`;
+  }
+  function getSaveEndpoint(op) {
+    return op === 'auto_trim' ? `${AIME_BASE}/save` : `${BASE}/save`;
+  }
 
   /* ── DOM refs ────────────────────────────────────────── */
   const loadBtn      = document.getElementById('load-btn');
@@ -657,7 +954,7 @@
   );
 
   /* ── operation tabs ──────────────────────────────────── */
-  const opLabels = { cut:'Cut', fade:'Fade', loop:'Loop', split:'Split', mix:'Mix', overlay:'Overlay', eq:'EQ', warmth:'AI Warmth', enhance:'Style Enhance' };
+  const opLabels = { cut:'Cut', fade:'Fade', loop:'Loop', split:'Split', mix:'Mix', overlay:'Overlay', eq:'EQ', warmth:'AI Warmth', enhance:'Style Enhance', auto_trim:'Auto Trim' };
 
   document.querySelectorAll('.op-tab').forEach(tab =>
     tab.addEventListener('click', () => {
@@ -852,19 +1149,252 @@
     } else if (op === 'enhance') {
       fd.append('preset',    document.getElementById('enhance_preset').value);
       fd.append('intensity', (+document.getElementById('enhance_intensity').value / 100).toFixed(2));
+    } else if (op === 'auto_trim') {
+      fd.append('target_duration', document.getElementById('auto_trim_target_sec').value);
+      const pref = document.getElementById('auto_trim_energy_pref').value;
+      if (pref) fd.append('energy_preference', pref);
+      const strictnessPct = +document.getElementById('auto_trim_strictness').value;
+      fd.append('strictness', (strictnessPct / 100).toFixed(2));
+      fd.append('crossfade_beats', document.getElementById('auto_trim_xfade_beats').value);
+      const desc = document.getElementById('auto_trim_user_desc')?.value.trim();
+      if (desc) fd.append('user_description', desc);
     }
 
     return fd;
   }
 
+  /* ── AIME helpers ────────────────────────────────────── */
+  function fmtSec(s) {
+    s = parseFloat(s) || 0;
+    return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}.${String(Math.floor((s%1)*10))}`;
+  }
+
+  function showAimeMeta(meta) {
+    const el = document.getElementById('aime-meta');
+    if (!el || !meta) return;
+    const devBadge = meta.beat_dev_ms <= 15
+      ? `<span class="aime-badge aime-badge-ok">Beat-perfect ≤15ms</span>`
+      : `<span class="aime-badge aime-badge-warn">Dev ${meta.beat_dev_ms}ms</span>`;
+    const loopBadge = meta.was_looped ? `<span class="aime-badge aime-badge-loop">Looped</span>` : '';
+    const fallbackBadge = meta.used_fallback ? `<span class="aime-badge aime-badge-warn">Algo fallback</span>` : '';
+    el.innerHTML = `
+      <div class="aime-meta-row">
+        <span class="aime-item">🎵 BPM <strong>${meta.bpm}</strong></span>
+        <span class="aime-item">✂ Window <strong>${fmtSec(meta.window_start)} → ${fmtSec(meta.window_end)}</strong></span>
+        <span class="aime-item">⏱ <strong>${meta.actual_duration}s</strong></span>
+        ${devBadge} ${loopBadge} ${fallbackBadge}
+      </div>
+      ${meta.user_description ? `<div class="aime-reasoning" style="color:#a78bfa"><span>You: </span>${meta.user_description}</div>` : ''}
+      ${meta.reasoning ? `<div class="aime-reasoning"><span>AI: </span>${meta.reasoning}</div>` : ''}
+      ${meta.quality_warning ? `<div class="aime-warn">⚠ ${meta.quality_warning}</div>` : ''}
+    `;
+    el.classList.remove('hidden');
+  }
+
+  /* v2: render segment timeline coloured bars */
+  function renderSegmentTimeline(segments, totalDuration) {
+    const container = document.getElementById('aime-segment-timeline');
+    if (!container || !segments?.length) return;
+    const dur = totalDuration || segments[segments.length - 1]?.end || 1;
+    container.innerHTML = segments.map(seg => {
+      const pct = ((seg.end - seg.start) / dur * 100).toFixed(1);
+      const cls = `aime-seg-block aime-seg-${seg.label}`;
+      const tip = `${seg.label} ${fmtSec(seg.start)}–${fmtSec(seg.end)} (E:${(seg.energy*100).toFixed(0)}%)`;
+      return `<div class="${cls}" style="flex:${pct}" title="${tip}">${seg.label}</div>`;
+    }).join('');
+  }
+
+  /* v2: render candidate cards
+     mode: 'preview' (after analyze) or 'result' (after trim)
+     chosenIdx: highlight this card in result mode */
+  function renderCandidateCards(candidates, chosenIdx, mode) {
+    const container = document.getElementById(
+      mode === 'preview' ? 'aime-candidates-preview' : 'aime-candidates'
+    );
+    if (!container || !candidates?.length) return;
+
+    const title = mode === 'preview'
+      ? 'Candidate Windows (preview — run to apply)'
+      : 'All Candidate Windows';
+
+    const cards = candidates.map((c, i) => {
+      const isChosen = mode === 'result' && i === chosenIdx;
+      const scoreBar = (v, label) =>
+        `<span>${label}: <strong>${(v*100).toFixed(0)}%</strong></span>`;
+      const labels = c.segment_labels.map(l =>
+        `<span class="aime-card-label">${l}</span>`
+      ).join('');
+      const loopNote = c.needs_loop ? ' <span class="aime-badge aime-badge-loop" style="font-size:0.6rem">loop</span>' : '';
+      const chosenNote = isChosen ? ' <span class="aime-badge aime-badge-ok" style="font-size:0.6rem">AI pick</span>' : '';
+
+      // "Use this" button only in result mode (not for the already-chosen one)
+      const useBtn = mode === 'result' && !isChosen
+        ? `<button class="aime-use-btn" onclick="retrimWithCandidate(${i})" title="Re-trim using this window">Use this</button>`
+        : '';
+
+      return `
+        <div class="aime-candidate-card${isChosen ? ' chosen' : ''}" id="aime-card-${i}">
+          <div class="aime-card-rank">${i + 1}</div>
+          <div class="aime-card-info">
+            <div class="aime-card-time">
+              ${fmtSec(c.start)} → ${fmtSec(c.end)}
+              <span style="color:#52525b;font-weight:400"> (${c.duration.toFixed(1)}s)</span>
+              ${loopNote}${chosenNote}
+            </div>
+            <div class="aime-card-scores">
+              ${scoreBar(c.duration_score,'dur')} &nbsp;
+              ${scoreBar(c.energy_score,'energy')} &nbsp;
+              ${scoreBar(c.structural_score,'struct')} &nbsp;
+              <strong>Score: ${(c.total_score*100).toFixed(0)}%</strong>
+            </div>
+            <div class="aime-card-labels" style="margin-top:3px">${labels}</div>
+          </div>
+          ${useBtn}
+        </div>`;
+    }).join('');
+
+    container.innerHTML = `<div class="aime-candidates-title">${title}</div>${cards}`;
+    if (mode === 'result') container.classList.remove('hidden');
+  }
+
+  /* v2: re-trim using a specific candidate index (skips LLM) */
+  async function retrimWithCandidate(candidateIdx) {
+    // Mark the selected card visually
+    document.querySelectorAll('.aime-candidate-card').forEach((el, i) => {
+      el.classList.remove('manual-selected');
+      if (i === candidateIdx) el.classList.add('manual-selected');
+    });
+    document.querySelectorAll('.aime-use-btn').forEach(btn => btn.disabled = true);
+
+    setStatus(runStatus, `Re-trimming with candidate ${candidateIdx + 1}…`, 'busy');
+    runBtn.disabled = true;
+    try {
+      const fd = buildFD('auto_trim');   // already includes strictness + crossfade_beats
+      fd.append('chosen_window_index', String(candidateIdx));
+      const endpoint = getRunEndpoint('auto_trim');
+      const res = await fetch(endpoint, { method: 'POST', body: fd });
+      if (!res.ok) {
+        let msg = res.statusText;
+        try { const j = await res.json(); msg = Array.isArray(j.detail) ? j.detail.map(e=>e.msg).join(', ') : j.detail; } catch {}
+        throw new Error(msg);
+      }
+      await handleAimeTrimResponse(res);
+      setStatus(runStatus, `✓ Candidate ${candidateIdx + 1} applied`, 'ok');
+    } catch (e) {
+      setStatus(runStatus, `Error: ${e.message}`, 'error');
+      document.querySelectorAll('.aime-use-btn').forEach(btn => btn.disabled = false);
+    } finally {
+      runBtn.disabled = false;
+    }
+  }
+  // Expose to window so inline onclick="retrimWithCandidate(i)" works from module scope
+  window.retrimWithCandidate = retrimWithCandidate;
+
+  /* v2: shared handler for /trim JSON response (used by run + retrim) */
+  async function handleAimeTrimResponse(res) {
+    const j = await res.json();
+
+    // Decode base64 audio to Blob
+    const mimeType = j.audio_format === 'wav' ? 'audio/wav' : 'audio/mpeg';
+    const binary = atob(j.audio_b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: mimeType });
+
+    resultFmt = j.audio_format;
+    if (resultBlob) URL.revokeObjectURL(resultBlob);
+    resultBlobObj = blob;
+    resultBlob    = URL.createObjectURL(blob);
+    dlBtn.href     = resultBlob;
+    dlBtn.download = `edited_auto_trim.${resultFmt}`;
+
+    // Parse metadata
+    lastAimeMeta = {
+      bpm:             j.bpm,
+      window_start:    j.window_start,
+      window_end:      j.window_end,
+      actual_duration: j.actual_duration,
+      beat_dev_ms:     j.beat_deviation_ms,
+      was_looped:      j.was_looped,
+      used_fallback:   j.used_fallback,
+      reasoning:       j.agent_reasoning || '',
+      user_description: j.user_description || '',
+      quality_warning: j.quality_warning || '',
+      candidates:      j.candidates || [],
+      chosen_index:    j.chosen_index ?? 0,
+    };
+    showAimeMeta(lastAimeMeta);
+
+    // Candidate cards
+    renderCandidateCards(j.candidates, j.chosen_index, 'result');
+
+    // Waveform region overlay: chosen = green, others = dashed gray
+    if (ws && regions) {
+      regions.clearRegions();
+      (j.candidates || []).forEach((c, i) => {
+        if (i === j.chosen_index) {
+          regions.addRegion({ start: c.start, end: c.end, color: 'rgba(52,211,153,0.18)', drag: false, resize: false });
+        } else {
+          regions.addRegion({ start: c.start, end: c.end, color: 'rgba(113,113,122,0.08)', drag: false, resize: false });
+        }
+      });
+      regionHint.textContent = `AI window: ${fmtSec(j.window_start)} – ${fmtSec(j.window_end)}`;
+    }
+
+    // Phase 17: capture source audio for A/B comparison
+    abMode = 'trimmed';
+    // Revoke any previous original blob URL
+    if (originalBlobUrl) { URL.revokeObjectURL(originalBlobUrl); originalBlobUrl = null; }
+    // Grab original from the source wavesurfer or input fields
+    const srcType = document.querySelector('input[name="src_type"]:checked')?.value;
+    if (srcType === 'file') {
+      const f = document.getElementById('src_file')?.files[0];
+      if (f) originalBlobUrl = URL.createObjectURL(f);
+    } else {
+      const u = document.getElementById('src_url')?.value.trim();
+      if (u) originalBlobUrl = u; // use URL directly — no need to copy
+    }
+    // Show/hide A/B controls
+    const abControls = document.getElementById('ab-controls');
+    if (originalBlobUrl) {
+      abControls?.classList.remove('hidden');
+      const badge = document.getElementById('ab-mode-badge');
+      if (badge) { badge.textContent = 'Trimmed'; badge.className = 'aime-badge aime-badge-ok'; }
+    } else {
+      abControls?.classList.add('hidden');
+    }
+
+    // Load waveform for result
+    resultPanel.classList.remove('hidden');
+    saveStatus.textContent = '';
+    saveStatus.className = 'status';
+    if (wsResult) { wsResult.destroy(); wsResult = null; }
+    wsResult = WaveSurfer.create({
+      container: '#result-waveform',
+      waveColor: '#065f46',
+      progressColor: '#34d399',
+      cursorColor: '#a7f3d0',
+      height: 80,
+    });
+    wsResult.on('ready', () => {
+      const dur = wsResult.getDuration();
+      resultTime.textContent = `0:00 / ${fmt(dur)}`;
+      resultPbBtn.textContent = '▶';
+    });
+    wsResult.on('timeupdate', t => { resultTime.textContent = `${fmt(t)} / ${fmt(wsResult.getDuration())}`; });
+    wsResult.on('finish', () => { resultPbBtn.textContent = '▶'; });
+    wsResult.load(resultBlob);
+  }
+
   /* ── run operation ───────────────────────────────────── */
   runBtn.addEventListener('click', async () => {
     runBtn.disabled = true;
-    setStatus(runStatus, 'Processing…', 'busy');
+    setStatus(runStatus, currentOp === 'auto_trim' ? 'Analysing, selecting window & trimming…' : 'Processing…', 'busy');
     resultPanel.classList.add('hidden');
 
     try {
-      const res = await fetch(`${BASE}/${currentOp}`, { method: 'POST', body: buildFD(currentOp) });
+      const endpoint = getRunEndpoint(currentOp);
+      const res = await fetch(endpoint, { method: 'POST', body: buildFD(currentOp) });
 
       if (!res.ok) {
         let msg = res.statusText;
@@ -872,39 +1402,48 @@
         throw new Error(msg);
       }
 
-      const blob = await res.blob();
-      resultFmt = document.getElementById('output_format').value;
+      // v2: auto_trim returns JSON with base64 audio + full metadata + candidates
+      if (currentOp === 'auto_trim') {
+        await handleAimeTrimResponse(res);
+      } else {
+        lastAimeMeta = null;
+        document.getElementById('aime-meta')?.classList.add('hidden');
+        document.getElementById('aime-candidates')?.classList.add('hidden');
+        document.getElementById('ab-controls')?.classList.add('hidden');
+        abMode = 'trimmed';
+        if (originalBlobUrl) { URL.revokeObjectURL(originalBlobUrl); originalBlobUrl = null; }
 
-      if (resultBlob) URL.revokeObjectURL(resultBlob);
-      resultBlobObj = blob;                          // keep Blob for /save
-      resultBlob    = URL.createObjectURL(blob);
+        const blob = await res.blob();
+        resultFmt = document.getElementById('output_format').value;
 
-      // update download link
-      dlBtn.href     = resultBlob;
-      dlBtn.download = `edited_${currentOp}.${resultFmt}`;
+        if (resultBlob) URL.revokeObjectURL(resultBlob);
+        resultBlobObj = blob;
+        resultBlob    = URL.createObjectURL(blob);
 
-      // show result panel
-      resultPanel.classList.remove('hidden');
-      saveStatus.textContent = '';
-      saveStatus.className = 'status';
+        dlBtn.href     = resultBlob;
+        dlBtn.download = `edited_${currentOp}.${resultFmt}`;
 
-      // init result wavesurfer
-      if (wsResult) { wsResult.destroy(); wsResult = null; }
-      wsResult = WaveSurfer.create({
-        container: '#result-waveform',
-        waveColor: '#065f46',
-        progressColor: '#34d399',
-        cursorColor: '#a7f3d0',
-        height: 80,
-      });
-      wsResult.on('ready', () => {
-        const dur = wsResult.getDuration();
-        resultTime.textContent = `0:00 / ${fmt(dur)}`;
-        resultPbBtn.textContent = '▶';
-      });
-      wsResult.on('timeupdate', t => { resultTime.textContent = `${fmt(t)} / ${fmt(wsResult.getDuration())}`; });
-      wsResult.on('finish', () => { resultPbBtn.textContent = '▶'; });
-      wsResult.load(resultBlob);
+        resultPanel.classList.remove('hidden');
+        saveStatus.textContent = '';
+        saveStatus.className = 'status';
+
+        if (wsResult) { wsResult.destroy(); wsResult = null; }
+        wsResult = WaveSurfer.create({
+          container: '#result-waveform',
+          waveColor: '#065f46',
+          progressColor: '#34d399',
+          cursorColor: '#a7f3d0',
+          height: 80,
+        });
+        wsResult.on('ready', () => {
+          const dur = wsResult.getDuration();
+          resultTime.textContent = `0:00 / ${fmt(dur)}`;
+          resultPbBtn.textContent = '▶';
+        });
+        wsResult.on('timeupdate', t => { resultTime.textContent = `${fmt(t)} / ${fmt(wsResult.getDuration())}`; });
+        wsResult.on('finish', () => { resultPbBtn.textContent = '▶'; });
+        wsResult.load(resultBlob);
+      }
 
       setStatus(runStatus, '✓ Done — listen or download below', 'ok');
     } catch (e) {
@@ -925,8 +1464,366 @@
     if (op === 'mix')     return { source_url_2: document.getElementById('src2_url').value.trim() || 'file_upload' };
     if (op === 'warmth')  return { intensity: +(+document.getElementById('warmth_intensity').value / 100).toFixed(2), vocal_mode: document.getElementById('warmth_vocal_mode').checked };
     if (op === 'enhance') return { preset: document.getElementById('enhance_preset').value, intensity: +(+document.getElementById('enhance_intensity').value / 100).toFixed(2) };
+    if (op === 'auto_trim') return {
+      target_duration:     +document.getElementById('auto_trim_target_sec').value,
+      energy_preference:   document.getElementById('auto_trim_energy_pref').value || null,
+      strictness:          +(+document.getElementById('auto_trim_strictness').value / 100).toFixed(2),
+      crossfade_beats:     +document.getElementById('auto_trim_xfade_beats').value,
+      chosen_window_start: lastAimeMeta?.window_start ?? null,
+      chosen_window_end:   lastAimeMeta?.window_end   ?? null,
+      actual_duration:     lastAimeMeta?.actual_duration ?? null,
+      was_looped:          lastAimeMeta?.was_looped  ?? false,
+      agent_reasoning:     lastAimeMeta?.reasoning   ?? null,
+      bpm:                 lastAimeMeta?.bpm          ?? null,
+      chosen_index:        lastAimeMeta?.chosen_index ?? null,
+    };
     return {};
   }
+
+  /* ── Phase 12: strictness slider label ──────────────── */
+  document.getElementById('auto_trim_strictness')?.addEventListener('input', e => {
+    const v = +e.target.value;
+    const label = v <= 25 ? 'Musical' : v <= 75 ? 'Balanced' : 'Precise';
+    document.getElementById('auto_trim_strictness_label').textContent = label;
+  });
+
+  /* ── Find Best Section: description → analyze+LLM → preview ── */
+  let previewData = null;  // result from /preview — used by Apply button
+
+  document.getElementById('find-best-btn')?.addEventListener('click', async () => {
+    const btn    = document.getElementById('find-best-btn');
+    const status = document.getElementById('smart-fill-status');
+    const desc   = document.getElementById('auto_trim_user_desc')?.value.trim();
+
+    btn.disabled = true;
+    document.getElementById('aime-preview-result')?.classList.add('hidden');
+    setStatus(status, 'Analysing audio & finding best section…', 'busy');
+
+    try {
+      // Step 1: if we have a description, ask LLM to infer target_duration + energy_preference
+      let targetSec  = +document.getElementById('auto_trim_target_sec').value || null;
+      let energyPref = document.getElementById('auto_trim_energy_pref').value || null;
+      let strictness = +document.getElementById('auto_trim_strictness').value / 100;
+
+      if (desc) {
+        const sugFd = new FormData();
+        sugFd.append('description', desc);
+        if (lastAnalysisData?.duration) sugFd.append('source_duration', String(lastAnalysisData.duration));
+        const sugRes = await fetch(`${AIME_BASE}/suggest`, { method: 'POST', body: sugFd });
+        if (sugRes.ok) {
+          const sug = await sugRes.json();
+          if (sug.target_duration != null) {
+            targetSec = sug.target_duration;
+            document.getElementById('auto_trim_target_sec').value = targetSec;
+          }
+          if (sug.energy_preference != null) {
+            energyPref = sug.energy_preference;
+            document.getElementById('auto_trim_energy_pref').value = energyPref;
+          }
+          strictness = sug.strictness ?? strictness;
+          const pct = Math.round(strictness * 100);
+          document.getElementById('auto_trim_strictness').value = pct;
+          document.getElementById('auto_trim_strictness_label').textContent =
+            pct <= 25 ? 'Musical' : pct <= 75 ? 'Balanced' : 'Precise';
+          document.getElementById('auto_trim_xfade_beats').value = String(sug.crossfade_beats ?? 1.0);
+        }
+      }
+
+      if (!targetSec) throw new Error('Set a Target Duration or describe what you want (e.g. "30 second chorus")');
+
+      // Step 2: call /preview — analyze + LLM select, no audio encoding
+      const fd = new FormData();
+      const srcType = document.querySelector('input[name="src_type"]:checked')?.value;
+      if (srcType === 'file') {
+        const f = document.getElementById('src_file')?.files[0];
+        if (!f) throw new Error('No audio file selected');
+        fd.append('file', f);
+      } else {
+        const u = document.getElementById('src_url')?.value.trim();
+        if (!u) throw new Error('No audio URL entered');
+        fd.append('url', u);
+      }
+      fd.append('target_duration', String(targetSec));
+      if (energyPref) fd.append('energy_preference', energyPref);
+      fd.append('strictness', strictness.toFixed(2));
+      if (desc) fd.append('user_description', desc);
+
+      const res = await fetch(`${AIME_BASE}/preview`, { method: 'POST', body: fd });
+      if (!res.ok) {
+        let msg = res.statusText;
+        try { const j = await res.json(); msg = j.detail || msg; } catch {}
+        throw new Error(msg);
+      }
+      const j = await res.json();
+      previewData = j;
+
+      // Render segment timeline + candidate regions on source waveform
+      lastAnalysisData = j;
+      renderSegmentTimeline(j.segments, j.source_duration);
+      document.getElementById('aime-analyze-results')?.classList.remove('hidden');
+      document.getElementById('aime-bpm-badge').textContent = `${j.bpm} BPM`;
+      document.getElementById('aime-seg-info').innerHTML = `<strong>${j.segments?.length ?? 0}</strong> segments`;
+      document.getElementById('aime-dur-info').innerHTML = `<strong>${fmtSec(j.source_duration)}</strong> total`;
+      renderCandidateCards(j.candidates, j.chosen_index, 'preview');
+
+      if (ws && regions) {
+        regions.clearRegions();
+        // All candidates as faint overlays
+        (j.candidates || []).forEach((c, i) => {
+          const isChosen = i === j.chosen_index;
+          regions.addRegion({
+            start: c.start, end: c.end,
+            color: isChosen ? 'rgba(52,211,153,0.22)' : 'rgba(113,113,122,0.08)',
+            drag: false, resize: false,
+          });
+        });
+        regionHint.textContent = `AI suggestion: ${fmtSec(j.window_start)} – ${fmtSec(j.window_end)}`;
+      }
+
+      // Render the preview result panel
+      const chosen = j.candidates[j.chosen_index];
+      document.getElementById('preview-window-line').textContent =
+        `${fmtSec(j.window_start)} → ${fmtSec(j.window_end)}  (${j.window_duration.toFixed(1)}s)`;
+      const labelHtml = (chosen?.segment_labels || [])
+        .map(l => `<span class="aime-card-label">${l}</span>`).join(' ');
+      document.getElementById('preview-labels-line').innerHTML = labelHtml;
+      document.getElementById('preview-reasoning-line').textContent = j.agent_reasoning || '';
+      const loopBadge = document.getElementById('preview-loop-badge');
+      if (j.needs_loop) loopBadge.classList.remove('hidden'); else loopBadge.classList.add('hidden');
+      const fallbackBadge = document.getElementById('preview-fallback-badge');
+      fallbackBadge.style.display = j.used_fallback ? 'inline-block' : 'none';
+      document.getElementById('aime-preview-result')?.classList.remove('hidden');
+
+      setStatus(status, `✓ Found: ${fmtSec(j.window_start)} → ${fmtSec(j.window_end)} · ${j.bpm} BPM`, 'ok');
+
+    } catch (e) {
+      setStatus(status, `Error: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  /* Apply preview: re-posts /trim with chosen_window_index to skip LLM */
+  document.getElementById('apply-preview-btn')?.addEventListener('click', async () => {
+    if (!previewData) return;
+    runBtn.disabled = true;
+    setStatus(runStatus, 'Applying AI suggestion…', 'busy');
+    resultPanel.classList.add('hidden');
+    try {
+      const fd = buildFD('auto_trim');
+      fd.append('chosen_window_index', String(previewData.chosen_index));
+      const res = await fetch(`${AIME_BASE}/trim`, { method: 'POST', body: fd });
+      if (!res.ok) {
+        let msg = res.statusText;
+        try { const j = await res.json(); msg = j.detail || msg; } catch {}
+        throw new Error(msg);
+      }
+      await handleAimeTrimResponse(res);
+      setStatus(runStatus, '✓ Done — listen or download below', 'ok');
+      document.getElementById('aime-preview-result')?.classList.add('hidden');
+    } catch (e) {
+      setStatus(runStatus, `Error: ${e.message}`, 'error');
+    } finally {
+      runBtn.disabled = false;
+    }
+  });
+
+  document.getElementById('dismiss-preview-btn')?.addEventListener('click', () => {
+    document.getElementById('aime-preview-result')?.classList.add('hidden');
+    previewData = null;
+  });
+
+  /* ── Smart Fill: natural language → AIME params ─────── */
+  document.getElementById('smart-fill-btn')?.addEventListener('click', async () => {
+    const btn    = document.getElementById('smart-fill-btn');
+    const status = document.getElementById('smart-fill-status');
+    const desc   = document.getElementById('auto_trim_user_desc')?.value.trim();
+    if (!desc) {
+      setStatus(status, 'Type a description first', 'error');
+      return;
+    }
+
+    btn.disabled = true;
+    setStatus(status, 'Asking AI to fill parameters…', 'busy');
+
+    try {
+      const fd = new FormData();
+      fd.append('description', desc);
+      // Include source duration hint if already analysed
+      if (lastAnalysisData?.duration) fd.append('source_duration', String(lastAnalysisData.duration));
+
+      const res = await fetch(`${AIME_BASE}/suggest`, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(res.statusText);
+      const j = await res.json();
+
+      // Auto-fill fields
+      if (j.target_duration != null) {
+        document.getElementById('auto_trim_target_sec').value = j.target_duration;
+      }
+      if (j.energy_preference != null) {
+        document.getElementById('auto_trim_energy_pref').value = j.energy_preference;
+      }
+      // Strictness: map 0.0–1.0 → 0–100 slider
+      const strictnessPct = Math.round(j.strictness * 100);
+      document.getElementById('auto_trim_strictness').value = strictnessPct;
+      document.getElementById('auto_trim_strictness_label').textContent =
+        strictnessPct <= 25 ? 'Musical' : strictnessPct <= 75 ? 'Balanced' : 'Precise';
+      // Crossfade beats
+      document.getElementById('auto_trim_xfade_beats').value = String(j.crossfade_beats);
+
+      setStatus(status, `✓ ${j.explanation}`, 'ok');
+    } catch (e) {
+      setStatus(status, `Error: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  /* ── v2: Analyze button ──────────────────────────────── */
+  document.getElementById('analyze-btn')?.addEventListener('click', async () => {
+    const analyzeBtn  = document.getElementById('analyze-btn');
+    const analyzeStatus = document.getElementById('analyze-status');
+    const targetSec   = document.getElementById('auto_trim_target_sec')?.value;
+    const energyPref  = document.getElementById('auto_trim_energy_pref')?.value;
+    const strictnessPct = +document.getElementById('auto_trim_strictness')?.value;
+
+    analyzeBtn.disabled = true;
+    setStatus(analyzeStatus, 'Analysing audio structure…', 'busy');
+    document.getElementById('aime-analyze-results')?.classList.add('hidden');
+
+    try {
+      const fd = new FormData();
+      const srcType = document.querySelector('input[name="src_type"]:checked')?.value;
+      if (srcType === 'file') {
+        const f = document.getElementById('src_file')?.files[0];
+        if (!f) throw new Error('No audio file selected');
+        fd.append('file', f);
+      } else {
+        const u = document.getElementById('src_url')?.value.trim();
+        if (!u) throw new Error('No audio URL entered');
+        fd.append('url', u);
+      }
+      if (targetSec) fd.append('target_duration', targetSec);
+      if (energyPref) fd.append('energy_preference', energyPref);
+      fd.append('strictness', (strictnessPct / 100).toFixed(2));
+
+      const res = await fetch(`${AIME_BASE}/analyze`, { method: 'POST', body: fd });
+      if (!res.ok) {
+        let msg = res.statusText;
+        try { const j = await res.json(); msg = Array.isArray(j.detail) ? j.detail.map(e=>e.msg).join(', ') : j.detail; } catch {}
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      lastAnalysisData = data;
+
+      // Render analysis preview
+      document.getElementById('aime-bpm-badge').textContent = `${data.bpm} BPM`;
+      document.getElementById('aime-seg-info').innerHTML = `<strong>${data.segments?.length ?? 0}</strong> segments`;
+      document.getElementById('aime-dur-info').innerHTML = `<strong>${fmtSec(data.duration)}</strong> total`;
+      renderSegmentTimeline(data.segments, data.duration);
+      renderCandidateCards(data.candidates, -1, 'preview');
+
+      // Show candidate windows on source waveform
+      if (ws && regions && data.candidates?.length) {
+        regions.clearRegions();
+        const colors = ['rgba(52,211,153,0.15)', 'rgba(96,165,250,0.10)', 'rgba(251,191,36,0.10)'];
+        data.candidates.forEach((c, i) => {
+          regions.addRegion({ start: c.start, end: c.end, color: colors[i] || colors[2], drag: false, resize: false });
+        });
+        regionHint.textContent = `${data.candidates.length} candidate window${data.candidates.length > 1 ? 's' : ''} shown`;
+      }
+
+      document.getElementById('aime-analyze-results')?.classList.remove('hidden');
+      setStatus(analyzeStatus, `✓ ${data.bpm} BPM · ${data.segments?.length} segments · ${data.candidates?.length ?? 0} candidates found`, 'ok');
+    } catch (e) {
+      setStatus(analyzeStatus, `Error: ${e.message}`, 'error');
+    } finally {
+      analyzeBtn.disabled = false;
+    }
+  });
+
+  /* ── Phase 17: A/B toggle ───────────────────────────── */
+  document.getElementById('ab-toggle-btn')?.addEventListener('click', () => {
+    if (!originalBlobUrl || !resultBlob || !wsResult) return;
+
+    const badge = document.getElementById('ab-mode-badge');
+    // Get current playback position (in trimmed-time seconds) before destroying waveform
+    const currentPos = wsResult.getCurrentTime();
+    const isPlaying = wsResult.isPlaying();
+
+    if (abMode === 'trimmed') {
+      // Switch to original
+      abMode = 'original';
+      if (badge) { badge.textContent = 'Original'; badge.className = 'aime-badge'; badge.style.background='#3f3f46'; }
+      const windowStart = lastAimeMeta?.window_start ?? 0;
+      const seekTo = currentPos + windowStart; // map trimmed pos → original pos
+
+      wsResult.destroy();
+      const origRegions = RegionsPlugin.create();
+      wsResult = WaveSurfer.create({
+        container: '#result-waveform',
+        waveColor: '#52525b',
+        progressColor: '#a1a1aa',
+        cursorColor: '#e4e4e7',
+        height: 80,
+        plugins: [origRegions],
+      });
+      wsResult.on('ready', () => {
+        const dur = wsResult.getDuration();
+        resultTime.textContent = `0:00 / ${fmt(dur)}`;
+        resultPbBtn.textContent = '▶';
+        // Seek to mapped position and play if was playing
+        if (dur > 0) {
+          const progress = Math.min(seekTo / dur, 0.9999);
+          wsResult.seekTo(progress);
+        }
+        if (isPlaying) wsResult.play();
+        // Add region overlays: green = kept, red-tint = removed
+        if (lastAimeMeta) {
+          const ws_ = lastAimeMeta.window_start;
+          const we_ = lastAimeMeta.window_end;
+          // Before window (removed)
+          if (ws_ > 0.5) origRegions.addRegion({ start: 0, end: ws_, color: 'rgba(239,68,68,0.12)', drag: false, resize: false });
+          // Kept window
+          origRegions.addRegion({ start: ws_, end: we_, color: 'rgba(52,211,153,0.20)', drag: false, resize: false });
+          // After window (removed)
+          if (we_ < dur - 0.5) origRegions.addRegion({ start: we_, end: dur, color: 'rgba(239,68,68,0.12)', drag: false, resize: false });
+        }
+      });
+      wsResult.on('timeupdate', t => { resultTime.textContent = `${fmt(t)} / ${fmt(wsResult.getDuration())}`; });
+      wsResult.on('finish', () => { resultPbBtn.textContent = '▶'; });
+      wsResult.load(originalBlobUrl);
+
+    } else {
+      // Switch back to trimmed
+      abMode = 'trimmed';
+      if (badge) { badge.textContent = 'Trimmed'; badge.className = 'aime-badge aime-badge-ok'; badge.style.background=''; }
+      const windowStart = lastAimeMeta?.window_start ?? 0;
+      const seekTo = Math.max(0, currentPos - windowStart); // map original pos → trimmed pos
+
+      wsResult.destroy();
+      wsResult = WaveSurfer.create({
+        container: '#result-waveform',
+        waveColor: '#065f46',
+        progressColor: '#34d399',
+        cursorColor: '#a7f3d0',
+        height: 80,
+      });
+      wsResult.on('ready', () => {
+        const dur = wsResult.getDuration();
+        resultTime.textContent = `0:00 / ${fmt(dur)}`;
+        resultPbBtn.textContent = '▶';
+        if (dur > 0) {
+          const progress = Math.min(seekTo / dur, 0.9999);
+          wsResult.seekTo(progress);
+        }
+        if (isPlaying) wsResult.play();
+      });
+      wsResult.on('timeupdate', t => { resultTime.textContent = `${fmt(t)} / ${fmt(wsResult.getDuration())}`; });
+      wsResult.on('finish', () => { resultPbBtn.textContent = '▶'; });
+      wsResult.load(resultBlob);
+    }
+  });
 
   /* ── warmth slider + preset buttons ─────────────────── */
   document.getElementById('warmth_intensity').addEventListener('input', e => {
@@ -987,7 +1884,7 @@
       fd.append('source_url',        getSrcUrl());
       fd.append('output_format',     resultFmt);
 
-      const res = await fetch(`${BASE}/save`, { method: 'POST', body: fd });
+      const res = await fetch(getSaveEndpoint(currentOp), { method: 'POST', body: fd });
       if (!res.ok) {
         let msg = res.statusText;
         try { const j = await res.json(); msg = Array.isArray(j.detail) ? j.detail.map(e=>e.msg).join(', ') : j.detail; } catch {}

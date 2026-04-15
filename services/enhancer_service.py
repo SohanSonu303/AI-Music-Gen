@@ -70,8 +70,10 @@ PRESETS: dict = {
             (HighShelfFilter, {"cutoff_frequency_hz": 8000.0, "gain_db": -4.0}),
             (Bitcrush,        {"bit_depth": 12.0}),
             (Chorus,          {"rate_hz": 0.8, "depth": 0.3, "centre_delay_ms": 7.0, "mix": 0.2}),
-            (Reverb,          {"room_size": 0.25, "damping": 0.7, "wet_level": 0.12, "dry_level": 1.0}),
-            (Compressor,      {"threshold_db": -18.0, "ratio": 3.0, "attack_ms": 20.0, "release_ms": 150.0}),
+            # dry_level = 1 - wet_level so total energy stays constant (not additive)
+            (Reverb,          {"room_size": 0.25, "damping": 0.7, "wet_level": 0.12, "dry_level": 0.88}),
+            # Ratio reduced 3:1 → 2:1, slower attack — glue without squashing
+            (Compressor,      {"threshold_db": -18.0, "ratio": 2.0, "attack_ms": 30.0, "release_ms": 150.0}),
         ],
     },
 
@@ -79,15 +81,20 @@ PRESETS: dict = {
         "name":        "EDM / Club",
         "description": "Punchy, wide and loud — commercial electronic and dance music",
         "tags":        ["electronic", "dance", "club", "edm"],
-        "stereo_width": 0.5,
+        # Width reduced 0.5 → 0.4: side channel was amplified 1.5× causing limiter pumping
+        "stereo_width": 0.4,
         "saturation":  None,
         "chain_def": [
             (HighpassFilter,  {"cutoff_frequency_hz": 40.0}),
             (PeakFilter,      {"cutoff_frequency_hz": 60.0,    "gain_db":  3.0, "q": 1.5}),
-            (PeakFilter,      {"cutoff_frequency_hz": 3500.0,  "gain_db":  2.0, "q": 1.0}),
+            # Presence boost reduced 2 → 1 dB at wider Q to avoid metallic harshness
+            (PeakFilter,      {"cutoff_frequency_hz": 3500.0,  "gain_db":  1.0, "q": 0.7}),
             (HighShelfFilter, {"cutoff_frequency_hz": 12000.0, "gain_db":  2.0}),
-            (Compressor,      {"threshold_db": -12.0, "ratio": 4.0, "attack_ms": 5.0, "release_ms": 50.0}),
-            (Limiter,         {"threshold_db": -0.3, "release_ms": 50.0}),
+            # Ratio reduced 4:1 → 2.5:1, threshold raised -12 → -8 dB, slower attack
+            # Removed in-chain Limiter — it caused double-limiter pumping with final safety limiter
+            (Compressor,      {"threshold_db": -8.0, "ratio": 2.5, "attack_ms": 10.0, "release_ms": 80.0}),
+            # Post-comp de-emphasis: tame harshness locked in by compression
+            (PeakFilter,      {"cutoff_frequency_hz": 3500.0,  "gain_db": -1.0, "q": 1.5}),
         ],
     },
 
@@ -95,14 +102,16 @@ PRESETS: dict = {
         "name":        "Cinematic",
         "description": "Grand and spacious — film scores, orchestral and epic trailers",
         "tags":        ["film", "orchestral", "trailer", "score", "epic"],
-        "stereo_width": 0.6,
+        # Width reduced 0.6 → 0.4: 1.6× side amplification was pushing peaks into limiter
+        "stereo_width": 0.4,
         "saturation":  None,
         "chain_def": [
             (HighpassFilter,  {"cutoff_frequency_hz": 30.0}),
             (LowShelfFilter,  {"cutoff_frequency_hz": 120.0,  "gain_db":  1.5}),
             (PeakFilter,      {"cutoff_frequency_hz": 800.0,  "gain_db": -1.0, "q": 0.8}),
             (HighShelfFilter, {"cutoff_frequency_hz": 10000.0,"gain_db":  1.0}),
-            (Reverb,          {"room_size": 0.7, "damping": 0.6, "wet_level": 0.25, "dry_level": 1.0}),
+            # dry_level = 1 - wet_level so total energy stays constant (not additive)
+            (Reverb,          {"room_size": 0.7, "damping": 0.6, "wet_level": 0.25, "dry_level": 0.75}),
             (Compressor,      {"threshold_db": -20.0, "ratio": 2.0, "attack_ms": 40.0, "release_ms": 300.0}),
         ],
     },
@@ -116,10 +125,14 @@ PRESETS: dict = {
         "chain_def": [
             (HighpassFilter,  {"cutoff_frequency_hz": 60.0}),
             (PeakFilter,      {"cutoff_frequency_hz": 200.0,  "gain_db": -1.5, "q": 0.8}),
-            (PeakFilter,      {"cutoff_frequency_hz": 3000.0, "gain_db":  1.5, "q": 1.0}),
+            # Presence boost reduced 1.5 → 1.0 dB to avoid shrill compression artifact
+            (PeakFilter,      {"cutoff_frequency_hz": 3000.0, "gain_db":  1.0, "q": 1.0}),
             (HighShelfFilter, {"cutoff_frequency_hz": 10000.0,"gain_db":  2.0}),
-            (Compressor,      {"threshold_db": -14.0, "ratio": 3.0, "attack_ms": 8.0, "release_ms": 80.0}),
-            (Limiter,         {"threshold_db": -0.5, "release_ms": 50.0}),
+            # Ratio reduced 3:1 → 2:1, threshold raised -14 → -10 dB, slower attack
+            # Removed in-chain Limiter — redundant with final safety limiter; caused pumping
+            (Compressor,      {"threshold_db": -10.0, "ratio": 2.0, "attack_ms": 18.0, "release_ms": 120.0}),
+            # Post-comp de-emphasis: tame brightness locked in by compression
+            (PeakFilter,      {"cutoff_frequency_hz": 3000.0, "gain_db": -0.8, "q": 1.5}),
         ],
     },
 
@@ -134,7 +147,8 @@ PRESETS: dict = {
             (LowShelfFilter,  {"cutoff_frequency_hz": 200.0,  "gain_db":  1.0}),
             (HighShelfFilter, {"cutoff_frequency_hz": 8000.0, "gain_db": -2.0}),
             (Chorus,          {"rate_hz": 0.3, "depth": 0.2, "centre_delay_ms": 10.0, "mix": 0.15}),
-            (Reverb,          {"room_size": 0.5, "damping": 0.5, "wet_level": 0.20, "dry_level": 1.0}),
+            # dry_level = 1 - wet_level so total energy stays constant (not additive)
+            (Reverb,          {"room_size": 0.5, "damping": 0.5, "wet_level": 0.20, "dry_level": 0.80}),
             (Compressor,      {"threshold_db": -22.0, "ratio": 2.0, "attack_ms": 60.0, "release_ms": 400.0}),
         ],
     },
@@ -150,8 +164,10 @@ PRESETS: dict = {
             (LowShelfFilter,  {"cutoff_frequency_hz": 150.0,  "gain_db":  2.0}),
             (PeakFilter,      {"cutoff_frequency_hz": 3500.0, "gain_db": -1.0, "q": 1.0}),
             (HighShelfFilter, {"cutoff_frequency_hz": 12000.0,"gain_db": -2.0}),
-            (Compressor,      {"threshold_db": -18.0, "ratio": 2.5, "attack_ms": 25.0, "release_ms": 200.0}),
-            (Reverb,          {"room_size": 0.3, "damping": 0.7, "wet_level": 0.10, "dry_level": 1.0}),
+            # Ratio reduced 2.5:1 → 2:1 for gentler glue compression
+            (Compressor,      {"threshold_db": -18.0, "ratio": 2.0, "attack_ms": 25.0, "release_ms": 200.0}),
+            # dry_level = 1 - wet_level so total energy stays constant (not additive)
+            (Reverb,          {"room_size": 0.3, "damping": 0.7, "wet_level": 0.10, "dry_level": 0.90}),
         ],
     },
 }
@@ -178,9 +194,15 @@ def stereo_widen(audio: np.ndarray, width: float) -> np.ndarray:
     width = float(np.clip(width, 0.0, 1.0))
     mid  = (audio[0].astype(np.float64) + audio[1].astype(np.float64)) / 2.0
     side = (audio[0].astype(np.float64) - audio[1].astype(np.float64)) / 2.0 * (1.0 + width)
-    L = (mid + side).astype(np.float32)
-    R = (mid - side).astype(np.float32)
-    return np.stack([L, R])
+    L = mid + side
+    R = mid - side
+    # Safety: if widening pushed peaks above 0.95, scale down to prevent limiter pumping
+    peak = float(np.max(np.abs(np.stack([L, R]))))
+    if peak > 0.95:
+        scale = 0.95 / peak
+        L *= scale
+        R *= scale
+    return np.stack([L.astype(np.float32), R.astype(np.float32)])
 
 
 def _build_chain(preset_id: str) -> Pedalboard:

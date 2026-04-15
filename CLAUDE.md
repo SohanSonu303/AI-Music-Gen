@@ -15,12 +15,22 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 - `routers/` — HTTP routing only, delegates logic to services and enqueues Celery tasks
 - `services/` — business logic as static methods; `music_service.py` pre-inserts QUEUED records and returns `(records, celery_params)` tuples; `separation_service.py` runs sync background processing via `BackgroundTasks`; `album_service.py` dispatches Celery tasks for album generation; `warmth_service.py` contains the full AI Analog Warmth DSP pipeline (spectral analysis, adaptive parameter engine, 7-stage processing, vocal mode); `enhancer_service.py` contains the AI Style Enhancer preset engine (6 genre presets, stereo widening, dry/wet blend, loudness match)
 - `models/` — Pydantic models for request validation and API responses
-- `agents/` — LangGraph agents; `album_agent.py` is a 4-node planning graph (analyze → plan → prompts → lyrics)
+- `agents/` — LangGraph agents; `album_agent.py` is a 4-node planning graph (analyze → plan → prompts → lyrics); `auto_edit_agent.py` is a single-node window selector + loop arrangement planner for AIME
 - `tasks/` — Celery tasks; `music_tasks.py` contains `submit_and_poll_task` (all single-track operations) and `process_album_track_task` (album tracks)
 - `celery_app.py` — Celery instance with one queue: `musicgpt_album` (concurrency = `MUSICGPT_MAX_PARALLEL`)
 - `supabase_client.py` — singleton client shared across all services
 
 For full user flow diagrams, sequence flows, and file responsibility breakdown see [userflow.md](userflow.md).
+
+---
+
+## AI Audio Feature Highlights
+
+**AI Analog Warmth** — Fixes the cold, metallic "AI music" sound by running a 7-stage adaptive DSP pipeline (spectral analysis → de-harshness → body EQ → tube saturation → Moog LPF → compression → loudness match) that makes AI-generated tracks feel like they were mixed on real analog gear. *Marketing: "Turn your AI-generated music from digital and harsh into warm, tape-saturated, and production-ready — in one click."*
+
+**AI Style Enhancer** — Applies a genre-matched mastering chain (6 presets: Lo-Fi, EDM, Cinematic, Pop, Chill, Vintage) to colour and shape audio without destroying the original — intensity slider controls dry/wet blend so users go from subtle polish to full genre transformation. *Marketing: "Give your track the sonic identity of a professional genre — lo-fi bedroom vibes, club-ready EDM punch, or cinematic grandeur — instantly."*
+
+**AIME (Automated AI Music Editor / Auto Trim)** — Detects BPM, segments the track structurally (intro/verse/chorus/drop etc.), scores candidate windows by energy and musical quality, then uses an LLM to pick the best section and loop it to any target duration with beat-synced crossfades. *Marketing: "Tell it 'give me a punchy 30-second drop' and it finds, trims, and loops the perfect section of your track — automatically."*
 
 ---
 
@@ -192,6 +202,54 @@ Worker command: `celery -A celery_app worker -Q musicgpt_album --concurrency=1 -
 4. On success: uploads `vocals.wav`, `drums.wav`, `bass.wav`, `other.wav` to Supabase Storage at `{user_id}/{project_id}/{job_id}/{stem}.wav`, updates row with public URLs and `COMPLETED`
 5. On failure: sets status to `FAILED` with `error_message`
 6. Cleanup: always deletes only this job's input file, converted WAV, and demucs output subfolder — `inputs/` and `outputs/` root folders are never removed (safe for concurrent jobs)
+
+**AIME (Automated AI Music Editor) flow:**
+
+Router: `routers/auto_edit_router.py`, prefix `/auto-edit`, tags `["Auto Edit"]`
+Service: `services/auto_edit_service.py`
+Agent: `agents/auto_edit_agent.py` (LangGraph single-node window selector + loop arrangement planner)
+Models: `models/auto_edit_model.py` (`AutoTrimRequest`, `AutoTrimResponse`, `CandidateWindow`, `AudioAnalysis`, `SegmentInfo`)
+UI: `audio_edit_test.html` (✦ Auto Trim tab, served via `GET /test-edit/ui`)
+
+**Endpoints:**
+- `POST /auto-edit/analyze` — BPM detection, beat tracking, structural segment labeling; accepts optional `target_duration` + `energy_preference` + `strictness` to also score and return candidate trim windows (used for analyze-before-trim preview)
+- `POST /auto-edit/suggest` — accepts a free-text `description` (e.g. "punchy 30s drop for a DJ mix"), calls LLM to infer and return `{target_duration, energy_preference, strictness, crossfade_beats, explanation}`; used by the "Auto-fill params" button
+- `POST /auto-edit/preview` — analyze + LLM window selection with no audio encoding (~1–3s); returns `{bpm, segments, candidates, chosen_index, window_start, window_end, agent_reasoning}`; used by the "Find Best Section" button to show the AI suggestion before the user commits
+- `POST /auto-edit/trim` — full pipeline: analyze → candidates → LLM/manual select → trim/loop → encode; returns JSON `{audio_b64, audio_format, bpm, window_start, window_end, actual_duration, beat_deviation_ms, was_looped, used_fallback, agent_reasoning, user_description, quality_warning, chosen_index, candidates}`; keeps `X-AIME-*` headers for backward compat
+- `POST /auto-edit/save` — uploads trimmed audio blob to Supabase Storage, inserts `editing_table` row with `operation="auto_trim"`
+
+**Analysis pipeline (`analyze_audio`):**
+- BPM via `librosa.beat.beat_track`; downbeats inferred as every 4th beat (4/4 assumption)
+- Structural segmentation via `librosa.segment.agglomerative` on MFCC
+- **Spectral labeling** (`_label_segments`): multi-feature decision tree using chroma variance (`librosa.feature.chroma_cqt`), spectral contrast, onset density, and energy; 8 labels: `intro | verse | build | chorus | peak | drop | bridge | outro`; graceful fallback to energy-only v1 if spectral extraction fails
+
+**Candidate scoring (`find_candidate_windows`):**
+- Windows anchored to detected downbeats; duration tolerance = ±1 bar
+- 4-axis weighted score: `duration × energy × structural × spectral_quality` (spectral fixed at 10%)
+- **Strictness slider** (0.0–1.0) interpolates weight poles: Musical (18/36/36/10) ↔ Precise (72/9/9/10)
+- **Spectral quality score** (`_spectral_quality_score`): crest factor, centroid stability, harshness ratio (2–5kHz); requires mono array
+- **9 energy preferences**: `high_energy | climax | drop | chorus | verse | build | chill | outro | intro_heavy`; each maps to a label-overlap scoring strategy via `_label_overlap_score`
+
+**LLM agent (`agents/auto_edit_agent.py`):**
+- `select_window(candidates, energy_preference, user_description)` — LangGraph single-node graph; calls OpenRouter DeepSeek v3.2 via `_call_openrouter()`; short-circuits when 1 candidate; falls back to rank-0 on failure
+- `plan_loop_arrangement(segments, target_duration)` — LLM arranges segment indices musically (intro→verse→chorus→outro pattern) to fill target duration when looping; algorithmic fallback
+
+**Trim execution (`execute_trim`):**
+- **Beat-synced crossfade**: `xfade_ms = crossfade_beats × (60/bpm) × 1000`, clamped 20–500ms
+- **Intelligent loop** (`_intelligent_loop`): when `target > source` and ≥3 segments, stitches segments in LLM-planned arrangement order using overlap-add with beat-synced crossfades; falls back to `_loop_to_target` (simple tile)
+- Logarithmic outro fade over last 1.5s; fade-in at trim start boundary
+- Quality checks: beat deviation ms, click detection at cut point
+
+**UI features (`audio_edit_test.html` — ✦ Auto Trim tab):**
+- **Find Best Section**: user types plain-language intent → calls `/suggest` (infers params) → calls `/preview` (LLM selects window) → shows highlighted region on source waveform + AI reasoning + segment labels → "Apply This Trim" button posts `/trim` with `chosen_window_index` (skips LLM on second call)
+- **Auto-fill params only**: calls `/suggest` alone, populates form fields without analyzing audio
+- **Analyze Audio First**: calls `/analyze` with target duration, shows BPM badge + coloured segment timeline + 3 candidate cards as waveform regions
+- **Candidate cards**: all 3 scored candidates shown after trim; AI-chosen highlighted green; "Use this" button on unchosen cards re-posts `/trim` with `chosen_window_index` (skips LLM, ~2× faster)
+- **Strictness slider**: Musical ↔ Balanced ↔ Precise label; passed to both analyze and trim
+- **Crossfade dropdown**: Half beat / 1 beat / 2 beats / 1 bar
+- **A/B compare**: after trim, "A/B Compare" button toggles result waveform between trimmed audio and original; position-synced (trimmed pos ↔ original pos via `window_start` offset); original view shows green (kept) + red-tint (removed) region overlays
+- **Metadata box**: BPM, window timestamps, actual duration, beat-deviation badge, loop/fallback badges, "You:" user description line (purple), "AI:" reasoning line, quality warnings
+- **Segment timeline**: coloured blocks per label (intro=gray, verse=purple, build=amber, chorus=green, peak=emerald, drop=red, bridge=blue, outro=muted)
 
 ---
 
