@@ -209,6 +209,35 @@
     .op-tab-premium:hover { border-color: #a78bfa; color: #ede9fe; background: linear-gradient(135deg, rgba(109,40,217,0.25), rgba(167,139,250,0.2)); }
     .op-tab-premium.active { background: linear-gradient(135deg, #6d28d9, #7c3aed); border-color: #a78bfa; color: #fff; }
 
+    /* ── Platform Mastering ──────────────────────────────── */
+    .master-header { margin-bottom: 14px; }
+    .master-title { font-size: 1.05rem; font-weight: 600; background: linear-gradient(90deg,#a78bfa,#60a5fa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom: 4px; }
+    .master-sub { font-size: 0.78rem; color: #71717a; line-height: 1.4; }
+    .platform-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+    @media(max-width:600px){ .platform-grid { grid-template-columns: repeat(2,1fr); } }
+    .platform-card { background: #18181b; border: 1.5px solid #3f3f46; border-radius: 8px; padding: 10px 12px; cursor: pointer; transition: border-color .15s, background .15s; }
+    .platform-card:hover { border-color: #7c3aed; background: #1c1c27; }
+    .platform-card.selected { border-color: #a78bfa; background: rgba(109,40,217,0.15); }
+    .platform-card-icon { font-size: 1.1rem; margin-bottom: 4px; }
+    .platform-card-name { font-size: 0.82rem; font-weight: 600; color: #e4e4e7; }
+    .platform-card-lufs { font-size: 0.72rem; color: #a78bfa; margin-top: 2px; }
+    .platform-card-peak { font-size: 0.68rem; color: #52525b; }
+    /* Mastering report box */
+    .master-report { background: #09090b; border: 1px solid #27272a; border-radius: 8px; padding: 14px 16px; margin-top: 14px; display: none; }
+    .master-report.visible { display: block; }
+    .master-report-title { font-size: 0.78rem; font-weight: 600; color: #a78bfa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: .06em; }
+    .master-report-row { display: flex; gap: 24px; margin-bottom: 10px; flex-wrap: wrap; }
+    .master-report-cell { flex: 1; min-width: 110px; }
+    .master-report-label { font-size: 0.68rem; color: #52525b; text-transform: uppercase; letter-spacing:.05em; margin-bottom: 3px; }
+    .master-report-val { font-size: 0.92rem; font-weight: 700; color: #e4e4e7; }
+    .master-report-val.compliant { color: #34d399; }
+    .master-report-val.warn { color: #fbbf24; }
+    .master-changes { margin-top: 8px; }
+    .master-changes-label { font-size: 0.68rem; color: #52525b; text-transform: uppercase; letter-spacing:.05em; margin-bottom: 5px; }
+    .master-change-item { font-size: 0.75rem; color: #a1a1aa; padding: 3px 0; border-bottom: 1px solid #1c1c1c; display: flex; align-items: baseline; gap: 6px; }
+    .master-change-item:last-child { border-bottom: none; }
+    .master-change-item::before { content: "→"; color: #6d28d9; flex-shrink: 0; }
+
     /* ── warmth panel ───────────────────────────────────── */
     .warmth-header { margin-bottom: 14px; }
     .warmth-title { font-size: 0.88rem; font-weight: 600; color: #c4b5fd; margin-bottom: 3px; }
@@ -459,6 +488,48 @@
     .aime-use-btn:hover:not(:disabled) { background: #27272a; color: #e4e4e7; border-color: #52525b; }
     .aime-use-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .aime-use-btn.active { background: rgba(96,165,250,0.15); color: #60a5fa; border-color: rgba(96,165,250,0.4); }
+
+    /* ── Podcast Producer ───────────────────────────────── */
+    .podcast-title { font-size: 1rem; font-weight: 700; background: linear-gradient(90deg,#34d399,#60a5fa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom: 4px; }
+    .podcast-sub { font-size: 0.73rem; color: #71717a; line-height: 1.5; margin-bottom: 14px; }
+    .podcast-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+    .podcast-option { display: flex; align-items: flex-start; gap: 9px; padding: 8px 10px; background: #18181b; border: 1px solid #27272a; border-radius: 8px; cursor: pointer; transition: border-color .15s; }
+    .podcast-option:hover { border-color: #3f3f46; }
+    .podcast-option input[type="checkbox"] { accent-color: #34d399; width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; cursor: pointer; }
+    .podcast-option-text { flex: 1; }
+    .podcast-option-label { font-size: 0.82rem; font-weight: 500; color: #e4e4e7; }
+    .podcast-option-desc  { font-size: 0.68rem; color: #52525b; margin-top: 2px; line-height: 1.4; }
+    .podcast-warn-badge { font-size: 0.62rem; font-weight: 600; background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+    /* Duck slider */
+    .duck-slider { width: 100%; accent-color: #34d399; cursor: pointer; margin: 4px 0 2px; }
+    .duck-ticks  { display: flex; justify-content: space-between; font-size: 0.6rem; color: #52525b; }
+    /* Podcast report */
+    .podcast-report { background: #09090b; border: 1px solid #27272a; border-radius: 8px; padding: 14px 16px; margin-top: 14px; display: none; }
+    .podcast-report.visible { display: block; }
+    .podcast-report-title { font-size: 0.78rem; font-weight: 600; color: #34d399; margin-bottom: 10px; text-transform: uppercase; letter-spacing: .06em; }
+
+    /* ── Reference Match ────────────────────────────────── */
+    .ref-match-title { font-size: 1rem; font-weight: 700; background: linear-gradient(90deg,#f59e0b,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom: 4px; }
+    .ref-match-sub { font-size: 0.73rem; color: #71717a; line-height: 1.5; margin-bottom: 14px; }
+    /* Reference analysis insight box */
+    .ref-analyze-box { background: #09090b; border: 1px solid #27272a; border-radius: 8px; padding: 12px 14px; margin-top: 12px; display: none; }
+    .ref-analyze-box.visible { display: block; }
+    .ref-analyze-title { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: #f59e0b; margin-bottom: 8px; }
+    .ref-analyze-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 8px; }
+    .ref-analyze-cell { flex: 1; min-width: 90px; }
+    .ref-analyze-label { font-size: 0.68rem; color: #52525b; text-transform: uppercase; letter-spacing:.05em; margin-bottom: 2px; }
+    .ref-analyze-val { font-size: 0.92rem; font-weight: 700; color: #e4e4e7; }
+    .ref-eq-item { font-size: 0.72rem; color: #a1a1aa; padding: 2px 0; display: flex; gap: 6px; align-items: baseline; }
+    .ref-eq-item::before { content: "~"; color: #f59e0b; flex-shrink: 0; }
+    /* Vibe prompt box */
+    .vibe-prompt-box { background: #09090b; border: 1px solid #27272a; border-radius: 8px; padding: 12px 14px; margin-top: 12px; display: none; }
+    .vibe-prompt-box.visible { display: block; }
+    .vibe-prompt-title { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: #ec4899; margin-bottom: 8px; }
+    .vibe-prompt-text { width: 100%; min-height: 80px; background: #18181b; border: 1px solid #3f3f46; border-radius: 7px; color: #e4e4e7; font-size: 0.82rem; padding: 8px 10px; resize: vertical; font-family: inherit; outline: none; }
+    /* Match report box */
+    .ref-match-report { background: #09090b; border: 1px solid #27272a; border-radius: 8px; padding: 14px 16px; margin-top: 14px; display: none; }
+    .ref-match-report.visible { display: block; }
+    .ref-match-report-title { font-size: 0.78rem; font-weight: 600; color: #f59e0b; margin-bottom: 10px; text-transform: uppercase; letter-spacing: .06em; }
   </style>
 </head>
 <body>
@@ -529,6 +600,9 @@
     <button class="op-tab op-tab-premium" data-op="warmth">✦ AI Warmth</button>
     <button class="op-tab op-tab-premium" data-op="enhance">✦ Style Enhance</button>
     <button class="op-tab op-tab-premium" data-op="auto_trim">✦ Auto Trim</button>
+    <button class="op-tab op-tab-premium" data-op="master">✦ Master</button>
+    <button class="op-tab op-tab-premium" data-op="ref_match">✦ Reference Match</button>
+    <button class="op-tab op-tab-premium" data-op="podcast">✦ Podcast</button>
   </div>
 
   <!-- cut -->
@@ -851,6 +925,227 @@
     </select>
   </div>
 
+  <!-- platform mastering -->
+  <div class="op-panel" id="panel-master">
+    <div class="master-header">
+      <div class="master-title">✦ AI Platform Mastering</div>
+      <div class="master-sub">Hit streaming loudness targets in one click — no more quiet tracks on Spotify.</div>
+    </div>
+
+    <input type="hidden" id="master_platform" value="spotify">
+
+    <div class="platform-grid">
+      <div class="platform-card selected" data-platform="spotify">
+        <div class="platform-card-icon">🎵</div>
+        <div class="platform-card-name">Spotify</div>
+        <div class="platform-card-lufs">−14 LUFS</div>
+        <div class="platform-card-peak">−1 dBTP</div>
+      </div>
+      <div class="platform-card" data-platform="youtube">
+        <div class="platform-card-icon">▶</div>
+        <div class="platform-card-name">YouTube</div>
+        <div class="platform-card-lufs">−13 LUFS</div>
+        <div class="platform-card-peak">−1 dBTP</div>
+      </div>
+      <div class="platform-card" data-platform="tiktok">
+        <div class="platform-card-icon">📱</div>
+        <div class="platform-card-name">TikTok / Reels</div>
+        <div class="platform-card-lufs">−14 LUFS</div>
+        <div class="platform-card-peak">−2 dBTP</div>
+      </div>
+      <div class="platform-card" data-platform="podcast">
+        <div class="platform-card-icon">🎙</div>
+        <div class="platform-card-name">Podcast</div>
+        <div class="platform-card-lufs">−16 LUFS</div>
+        <div class="platform-card-peak">−1 dBTP</div>
+      </div>
+      <div class="platform-card" data-platform="apple">
+        <div class="platform-card-icon">🍎</div>
+        <div class="platform-card-name">Apple Music</div>
+        <div class="platform-card-lufs">−16 LUFS</div>
+        <div class="platform-card-peak">−1 dBTP</div>
+      </div>
+      <div class="platform-card" data-platform="soundcloud">
+        <div class="platform-card-icon">☁</div>
+        <div class="platform-card-name">SoundCloud</div>
+        <div class="platform-card-lufs">−14 LUFS</div>
+        <div class="platform-card-peak">−1 dBTP</div>
+      </div>
+    </div>
+
+    <!-- report shown after processing -->
+    <div class="master-report" id="master-report">
+      <div class="master-report-title">Mastering Report</div>
+      <div class="master-report-row">
+        <div class="master-report-cell">
+          <div class="master-report-label">Before LUFS</div>
+          <div class="master-report-val" id="mr-before-lufs">—</div>
+        </div>
+        <div class="master-report-cell">
+          <div class="master-report-label">After LUFS</div>
+          <div class="master-report-val compliant" id="mr-after-lufs">—</div>
+        </div>
+        <div class="master-report-cell">
+          <div class="master-report-label">Gain Applied</div>
+          <div class="master-report-val" id="mr-gain">—</div>
+        </div>
+        <div class="master-report-cell">
+          <div class="master-report-label">True Peak</div>
+          <div class="master-report-val compliant" id="mr-peak">—</div>
+        </div>
+      </div>
+      <div class="master-changes">
+        <div class="master-changes-label">Processing Chain</div>
+        <div id="mr-changes"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- reference match -->
+  <div class="op-panel" id="panel-ref_match">
+    <div class="ref-match-title">✦ Reference Track Matching</div>
+    <div class="ref-match-sub">Upload a song you love as a reference — the AI matches your track's EQ, dynamics, and stereo width to it. Load your track above and set the Reference Track below.</div>
+
+    <!-- Action buttons row -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+      <button class="btn-secondary" id="ref-analyze-btn">Analyze Reference</button>
+      <button class="btn-secondary" id="ref-vibe-btn" style="border-color:#6d28d9;color:#c4b5fd">✦ Generate Vibe Prompt</button>
+    </div>
+    <div class="status" id="ref-analyze-status"></div>
+
+    <!-- Reference analysis insight box (shown after Analyze click) -->
+    <div class="ref-analyze-box" id="ref-analyze-box">
+      <div class="ref-analyze-title">Reference Fingerprint</div>
+      <div class="ref-analyze-row">
+        <div class="ref-analyze-cell">
+          <div class="ref-analyze-label">BPM</div>
+          <div class="ref-analyze-val" id="ra-bpm">—</div>
+        </div>
+        <div class="ref-analyze-cell">
+          <div class="ref-analyze-label">Key</div>
+          <div class="ref-analyze-val" id="ra-key">—</div>
+        </div>
+        <div class="ref-analyze-cell">
+          <div class="ref-analyze-label">Mode</div>
+          <div class="ref-analyze-val" id="ra-mode">—</div>
+        </div>
+      </div>
+      <div style="font-size:0.68rem;color:#52525b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Projected EQ Changes</div>
+      <div id="ra-eq-preview"></div>
+    </div>
+
+    <!-- Vibe prompt box (shown after Generate Vibe Prompt click) -->
+    <div class="vibe-prompt-box" id="vibe-prompt-box">
+      <div class="vibe-prompt-title">MusicGPT Vibe Prompt</div>
+      <textarea class="vibe-prompt-text" id="vibe-prompt-text" readonly></textarea>
+      <button class="btn-secondary" id="vibe-copy-btn" style="margin-top:8px;font-size:0.75rem;padding:5px 14px">Copy</button>
+    </div>
+
+    <!-- Match report box (shown after process run) -->
+    <div class="ref-match-report" id="ref-match-report">
+      <div class="ref-match-report-title">Match Report</div>
+      <div class="master-report-row">
+        <div class="master-report-cell">
+          <div class="master-report-label">EQ Bands Applied</div>
+          <div class="master-report-val" id="rm-eq-count">—</div>
+        </div>
+        <div class="master-report-cell">
+          <div class="master-report-label">Dynamics Δ</div>
+          <div class="master-report-val" id="rm-dynamics">—</div>
+        </div>
+        <div class="master-report-cell">
+          <div class="master-report-label">Stereo Width Δ</div>
+          <div class="master-report-val" id="rm-stereo">—</div>
+        </div>
+      </div>
+      <div class="master-changes">
+        <div class="master-changes-label">Processing Summary</div>
+        <div id="rm-changes"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- podcast producer -->
+  <div class="op-panel" id="panel-podcast">
+    <div class="podcast-title">✦ AI Podcast Producer</div>
+    <div class="podcast-sub">Turn a raw recording into a production-ready episode — noise removal, voice leveling, LUFS normalisation, and optional background music with auto-ducking.</div>
+
+    <!-- Processing options -->
+    <div class="podcast-options">
+      <label class="podcast-option">
+        <input type="checkbox" id="pod_noise_reduction" checked>
+        <div class="podcast-option-text">
+          <div class="podcast-option-label">Noise Reduction <span class="podcast-warn-badge">⚠ slow on long audio</span></div>
+          <div class="podcast-option-desc">Isolates vocals via demucs + noise gate. ~2–5 min per 30 min of audio.</div>
+        </div>
+      </label>
+      <label class="podcast-option">
+        <input type="checkbox" id="pod_voice_eq" checked>
+        <div class="podcast-option-text">
+          <div class="podcast-option-label">Voice EQ &amp; Leveling</div>
+          <div class="podcast-option-desc">HPF 80Hz, presence boost at 3kHz, 3:1 compression — podcast-standard chain.</div>
+        </div>
+      </label>
+      <label class="podcast-option" id="pod_music_option">
+        <input type="checkbox" id="pod_add_music" checked>
+        <div class="podcast-option-text">
+          <div class="podcast-option-label">Add Intro/Outro Music</div>
+          <div class="podcast-option-desc">Attaches background music with auto-ducking under speech. Load music in the panel below.</div>
+        </div>
+      </label>
+    </div>
+
+    <!-- Music timing + duck level (shown when add_music is checked) -->
+    <div id="pod-music-controls">
+      <div class="two-col" style="margin-bottom:12px">
+        <div class="field">
+          <label>Intro Duration (s)</label>
+          <input type="number" id="pod_intro_s" value="8" min="1" max="60" step="1">
+        </div>
+        <div class="field">
+          <label>Outro Duration (s)</label>
+          <input type="number" id="pod_outro_s" value="8" min="1" max="60" step="1">
+        </div>
+      </div>
+      <div class="field">
+        <label>Music Duck Level — <span id="pod_duck_label" style="color:#34d399;font-weight:600">−18 dB</span></label>
+        <input type="range" id="pod_duck_db" class="duck-slider" min="-6" max="-24" value="-18" step="1">
+        <div class="duck-ticks">
+          <span>−6 dB (subtle)</span>
+          <span>−18 dB (default)</span>
+          <span>−24 dB (very low) →</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Report (shown after processing) -->
+    <div class="podcast-report" id="podcast-report">
+      <div class="podcast-report-title">Production Report</div>
+      <div class="master-report-row">
+        <div class="master-report-cell">
+          <div class="master-report-label">Before LUFS</div>
+          <div class="master-report-val" id="pr-before-lufs">—</div>
+        </div>
+        <div class="master-report-cell">
+          <div class="master-report-label">After LUFS</div>
+          <div class="master-report-val compliant" id="pr-after-lufs">—</div>
+        </div>
+        <div class="master-report-cell">
+          <div class="master-report-label">Speech Duration</div>
+          <div class="master-report-val" id="pr-speech-dur">—</div>
+        </div>
+        <div class="master-report-cell">
+          <div class="master-report-label">Episode Duration</div>
+          <div class="master-report-val" id="pr-total-dur">—</div>
+        </div>
+      </div>
+      <div class="master-changes">
+        <div class="master-changes-label">Processing Chain</div>
+        <div id="pr-changes"></div>
+      </div>
+    </div>
+  </div>
+
   <button class="btn-primary" id="run-btn">Run Cut</button>
   <div class="status" id="run-status"></div>
 </div>
@@ -887,9 +1182,15 @@
   import WaveSurfer from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/wavesurfer.esm.js';
   import RegionsPlugin from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/regions.esm.js';
 
-  const BASE       = '/test-edit';
-  const AIME_BASE  = '/auto-edit';
-  let lastAnalysisData = null;  // result from /analyze (v2)
+  const BASE           = '/test-edit';
+  const AIME_BASE      = '/auto-edit';
+  const MASTER_BASE    = '/master';
+  const REF_MATCH_BASE = '/reference-match';
+  const PODCAST_BASE   = '/podcast';
+  let lastAnalysisData   = null;  // result from /analyze (v2)
+  let lastMasterReport   = null;  // report from last master run
+  let lastRefMatchReport = null;  // report from last reference-match run
+  let lastPodcastReport  = null;  // report from last podcast run
 
   /* ── state ───────────────────────────────────────────── */
   let ws             = null;   // source WaveSurfer
@@ -906,10 +1207,18 @@
 
   /* ── endpoint routing ────────────────────────────────── */
   function getRunEndpoint(op) {
-    return op === 'auto_trim' ? `${AIME_BASE}/trim` : `${BASE}/${op}`;
+    if (op === 'auto_trim') return `${AIME_BASE}/trim`;
+    if (op === 'master')    return `${MASTER_BASE}/process`;
+    if (op === 'ref_match') return `${REF_MATCH_BASE}/process`;
+    if (op === 'podcast')   return `${PODCAST_BASE}/produce`;
+    return `${BASE}/${op}`;
   }
   function getSaveEndpoint(op) {
-    return op === 'auto_trim' ? `${AIME_BASE}/save` : `${BASE}/save`;
+    if (op === 'auto_trim') return `${AIME_BASE}/save`;
+    if (op === 'master')    return `${MASTER_BASE}/save`;
+    if (op === 'ref_match') return `${REF_MATCH_BASE}/save`;
+    if (op === 'podcast')   return `${PODCAST_BASE}/save`;
+    return `${BASE}/save`;
   }
 
   /* ── DOM refs ────────────────────────────────────────── */
@@ -954,7 +1263,7 @@
   );
 
   /* ── operation tabs ──────────────────────────────────── */
-  const opLabels = { cut:'Cut', fade:'Fade', loop:'Loop', split:'Split', mix:'Mix', overlay:'Overlay', eq:'EQ', warmth:'AI Warmth', enhance:'Style Enhance', auto_trim:'Auto Trim' };
+  const opLabels = { cut:'Cut', fade:'Fade', loop:'Loop', split:'Split', mix:'Mix', overlay:'Overlay', eq:'EQ', warmth:'AI Warmth', enhance:'Style Enhance', auto_trim:'Auto Trim', master:'Master', ref_match:'Reference Match', podcast:'Podcast' };
 
   document.querySelectorAll('.op-tab').forEach(tab =>
     tab.addEventListener('click', () => {
@@ -964,9 +1273,12 @@
       tab.classList.add('active');
       document.getElementById(`panel-${currentOp}`).classList.add('active');
 
-      const needsSrc2 = ['mix','overlay'].includes(currentOp);
+      const needsSrc2 = ['mix','overlay','ref_match','podcast'].includes(currentOp);
       document.getElementById('source2-panel').classList.toggle('hidden', !needsSrc2);
-      document.getElementById('src2-label').textContent = currentOp === 'overlay' ? 'Overlay Track' : 'Second Track';
+      document.getElementById('src2-label').textContent =
+        currentOp === 'overlay'   ? 'Overlay Track'           :
+        currentOp === 'ref_match' ? 'Reference Track'          :
+        currentOp === 'podcast'   ? 'Background Music (optional)' : 'Second Track';
 
       runBtn.textContent = `Run ${opLabels[currentOp]}`;
       updateRegion();
@@ -1116,6 +1428,44 @@
         const f = document.getElementById('src2_file').files[0];
         if (f) fd.append('file2', f);
       }
+    } else if (op === 'ref_match') {
+      // target = main source panel, reference = source2 panel
+      if (document.querySelector('input[name="src_type"]:checked').value === 'url')
+        fd.append('target_url', document.getElementById('src_url').value.trim());
+      else {
+        const f = document.getElementById('src_file').files[0];
+        if (f) fd.append('target_file', f);
+      }
+      if (document.querySelector('input[name="src2_type"]:checked').value === 'url')
+        fd.append('ref_url', document.getElementById('src2_url').value.trim());
+      else {
+        const f = document.getElementById('src2_file').files[0];
+        if (f) fd.append('ref_file', f);
+      }
+    } else if (op === 'podcast') {
+      // speech = main source panel, music = source2 panel (optional)
+      if (document.querySelector('input[name="src_type"]:checked').value === 'url')
+        fd.append('speech_url', document.getElementById('src_url').value.trim());
+      else {
+        const f = document.getElementById('src_file').files[0];
+        if (f) fd.append('speech_file', f);
+      }
+      // Music source (optional — only append if something is provided)
+      const src2Type = document.querySelector('input[name="src2_type"]:checked').value;
+      if (src2Type === 'url') {
+        const u = document.getElementById('src2_url').value.trim();
+        if (u) fd.append('music_url', u);
+      } else {
+        const f = document.getElementById('src2_file').files[0];
+        if (f) fd.append('music_file', f);
+      }
+      // Options
+      fd.append('noise_reduction',  document.getElementById('pod_noise_reduction').checked  ? 'true' : 'false');
+      fd.append('voice_eq',         document.getElementById('pod_voice_eq').checked          ? 'true' : 'false');
+      fd.append('add_music',        document.getElementById('pod_add_music').checked         ? 'true' : 'false');
+      fd.append('duck_db',          document.getElementById('pod_duck_db').value);
+      fd.append('intro_duration_s', document.getElementById('pod_intro_s').value);
+      fd.append('outro_duration_s', document.getElementById('pod_outro_s').value);
     } else {
       if (document.querySelector('input[name="src_type"]:checked').value === 'url')
         fd.append('url', document.getElementById('src_url').value.trim());
@@ -1149,6 +1499,8 @@
     } else if (op === 'enhance') {
       fd.append('preset',    document.getElementById('enhance_preset').value);
       fd.append('intensity', (+document.getElementById('enhance_intensity').value / 100).toFixed(2));
+    } else if (op === 'master') {
+      fd.append('platform', document.getElementById('master_platform').value);
     } else if (op === 'auto_trim') {
       fd.append('target_duration', document.getElementById('auto_trim_target_sec').value);
       const pref = document.getElementById('auto_trim_energy_pref').value;
@@ -1290,6 +1642,277 @@
   // Expose to window so inline onclick="retrimWithCandidate(i)" works from module scope
   window.retrimWithCandidate = retrimWithCandidate;
 
+  /* ── Platform card selection ─────────────────────────── */
+  document.querySelectorAll('.platform-card').forEach(card =>
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.platform-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      document.getElementById('master_platform').value = card.dataset.platform;
+      // hide old report when user switches platform
+      document.getElementById('master-report').classList.remove('visible');
+    })
+  );
+
+  /* ── Master response handler ─────────────────────────── */
+  async function handleMasterResponse(res) {
+    const j = await res.json();
+
+    // Decode base64 audio to Blob
+    const mimeType = j.audio_format === 'wav' ? 'audio/wav' : 'audio/mpeg';
+    const binary = atob(j.audio_b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: mimeType });
+
+    resultFmt = j.audio_format;
+    if (resultBlob) URL.revokeObjectURL(resultBlob);
+    resultBlobObj = blob;
+    resultBlob    = URL.createObjectURL(blob);
+    dlBtn.href     = resultBlob;
+    dlBtn.download = `mastered_${j.report?.platform?.toLowerCase().replace(/\s+/g,'_') || 'track'}.${resultFmt}`;
+
+    // Store report for save op_params
+    lastMasterReport = j.report || null;
+
+    // Populate report box
+    const r = j.report;
+    if (r) {
+      const gainSign = r.gain_applied_db >= 0 ? '+' : '';
+      document.getElementById('mr-before-lufs').textContent = `${r.before.lufs} LUFS`;
+      document.getElementById('mr-after-lufs').textContent  = `${r.after.lufs} LUFS`;
+      document.getElementById('mr-gain').textContent        = `${gainSign}${r.gain_applied_db} dB`;
+      document.getElementById('mr-peak').textContent        = `${r.after.true_peak_db} dBTP`;
+
+      // Colour after LUFS: green if within 0.5dB of target, amber if off
+      const afterEl = document.getElementById('mr-after-lufs');
+      const diff = Math.abs(r.after.lufs - r.target_lufs);
+      afterEl.className = 'master-report-val ' + (diff <= 0.5 ? 'compliant' : 'warn');
+
+      // Changes list
+      const changesEl = document.getElementById('mr-changes');
+      changesEl.innerHTML = (r.changes || [])
+        .map(c => `<div class="master-change-item">${c}</div>`)
+        .join('');
+
+      document.getElementById('master-report').classList.add('visible');
+    }
+
+    // Show result panel with waveform
+    resultPanel.classList.remove('hidden');
+    saveStatus.textContent = '';
+    saveStatus.className   = 'status';
+    document.getElementById('aime-meta')?.classList.add('hidden');
+    document.getElementById('aime-candidates')?.classList.add('hidden');
+    document.getElementById('ab-controls')?.classList.add('hidden');
+    document.getElementById('ref-match-report')?.classList.remove('visible');
+
+    if (wsResult) { wsResult.destroy(); wsResult = null; }
+    wsResult = WaveSurfer.create({
+      container: '#result-waveform',
+      waveColor: '#065f46',
+      progressColor: '#34d399',
+      cursorColor: '#a7f3d0',
+      height: 80,
+    });
+    wsResult.on('ready', () => {
+      resultTime.textContent = `0:00 / ${fmt(wsResult.getDuration())}`;
+      resultPbBtn.textContent = '▶';
+    });
+    wsResult.on('timeupdate', t => { resultTime.textContent = `${fmt(t)} / ${fmt(wsResult.getDuration())}`; });
+    wsResult.on('finish', () => { resultPbBtn.textContent = '▶'; });
+    wsResult.load(resultBlob);
+  }
+
+  /* ── Reference Match response handler ───────────────── */
+  async function handleRefMatchResponse(res) {
+    const j = await res.json();
+
+    // Decode base64 audio
+    const mimeType = j.audio_format === 'wav' ? 'audio/wav' : 'audio/mpeg';
+    const binary = atob(j.audio_b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: mimeType });
+
+    resultFmt = j.audio_format;
+    if (resultBlob) URL.revokeObjectURL(resultBlob);
+    resultBlobObj = blob;
+    resultBlob    = URL.createObjectURL(blob);
+    dlBtn.href     = resultBlob;
+    const refKey = j.report?.reference_fingerprint?.key || 'track';
+    dlBtn.download = `ref_matched_${refKey.replace(/\s+/g,'_')}.${resultFmt}`;
+
+    // Store report
+    lastRefMatchReport = j.report || null;
+
+    // Populate match report box
+    const r = j.report;
+    if (r) {
+      document.getElementById('rm-eq-count').textContent =
+        `${r.eq_bands_applied?.length ?? 0} bands`;
+      // Dynamics delta
+      const dynDelta = r.dynamics?.target_after?.crest_factor_db != null && r.dynamics?.target_before?.crest_factor_db != null
+        ? (r.dynamics.target_after.crest_factor_db - r.dynamics.target_before.crest_factor_db).toFixed(1)
+        : '—';
+      document.getElementById('rm-dynamics').textContent =
+        dynDelta !== '—' ? `${dynDelta > 0 ? '+' : ''}${dynDelta} dB` : '—';
+      // Stereo width delta
+      const swDelta = r.stereo_width?.target_after != null && r.stereo_width?.target_before != null
+        ? (r.stereo_width.target_after - r.stereo_width.target_before).toFixed(3)
+        : '—';
+      document.getElementById('rm-stereo').textContent =
+        swDelta !== '—' ? `${swDelta > 0 ? '+' : ''}${swDelta}` : '—';
+      // Changes list
+      const changesEl = document.getElementById('rm-changes');
+      changesEl.innerHTML = (r.changes_summary || [])
+        .map(c => `<div class="master-change-item">${c}</div>`)
+        .join('');
+      document.getElementById('ref-match-report').classList.add('visible');
+    }
+
+    // Show waveform result
+    resultPanel.classList.remove('hidden');
+    saveStatus.textContent = '';
+    saveStatus.className   = 'status';
+    document.getElementById('aime-meta')?.classList.add('hidden');
+    document.getElementById('aime-candidates')?.classList.add('hidden');
+    document.getElementById('ab-controls')?.classList.add('hidden');
+
+    if (wsResult) { wsResult.destroy(); wsResult = null; }
+    wsResult = WaveSurfer.create({
+      container: '#result-waveform',
+      waveColor: '#b45309',
+      progressColor: '#f59e0b',
+      cursorColor: '#fde68a',
+      height: 80,
+    });
+    wsResult.on('ready', () => {
+      resultTime.textContent = `0:00 / ${fmt(wsResult.getDuration())}`;
+      resultPbBtn.textContent = '▶';
+    });
+    wsResult.on('timeupdate', t => { resultTime.textContent = `${fmt(t)} / ${fmt(wsResult.getDuration())}`; });
+    wsResult.on('finish', () => { resultPbBtn.textContent = '▶'; });
+    wsResult.load(resultBlob);
+  }
+
+  /* ── Analyze Reference button ────────────────────────── */
+  document.getElementById('ref-analyze-btn')?.addEventListener('click', async () => {
+    const btn    = document.getElementById('ref-analyze-btn');
+    const status = document.getElementById('ref-analyze-status');
+    btn.disabled = true;
+    setStatus(status, 'Analysing reference track…', 'busy');
+    document.getElementById('ref-analyze-box').classList.remove('visible');
+
+    try {
+      const fd = new FormData();
+      // Reference from source2-panel
+      if (document.querySelector('input[name="src2_type"]:checked').value === 'url') {
+        const u = document.getElementById('src2_url').value.trim();
+        if (!u) throw new Error('Enter a Reference Track URL in the panel below');
+        fd.append('ref_url', u);
+      } else {
+        const f = document.getElementById('src2_file').files[0];
+        if (!f) throw new Error('Upload a Reference Track file in the panel below');
+        fd.append('ref_file', f);
+      }
+      // Optional target from main source
+      if (document.querySelector('input[name="src_type"]:checked').value === 'url') {
+        const u = document.getElementById('src_url').value.trim();
+        if (u) fd.append('target_url', u);
+      } else {
+        const f = document.getElementById('src_file').files[0];
+        if (f) fd.append('target_file', f);
+      }
+
+      const res = await fetch(`${REF_MATCH_BASE}/analyze`, { method: 'POST', body: fd });
+      if (!res.ok) {
+        let msg = res.statusText;
+        try { const j = await res.json(); msg = j.detail || msg; } catch {}
+        throw new Error(msg);
+      }
+      const data = await res.json();
+
+      // Populate fingerprint
+      const fp = data.reference_fingerprint || {};
+      document.getElementById('ra-bpm').textContent  = fp.bpm ? fp.bpm.toFixed(1) : '—';
+      document.getElementById('ra-key').textContent  = fp.key  || '—';
+      document.getElementById('ra-mode').textContent = fp.mode || '—';
+
+      // Projected EQ bands (top 3 by abs gain)
+      const bands = (data.projected_eq_bands || [])
+        .filter(b => Math.abs(b.gain_db) >= 0.5)
+        .sort((a, b) => Math.abs(b.gain_db) - Math.abs(a.gain_db))
+        .slice(0, 3);
+      const eqEl = document.getElementById('ra-eq-preview');
+      if (bands.length > 0) {
+        eqEl.innerHTML = bands.map(b => {
+          const freqLabel = b.freq_hz >= 1000 ? `${(b.freq_hz/1000).toFixed(1)}kHz` : `${Math.round(b.freq_hz)}Hz`;
+          const sign = b.gain_db >= 0 ? '+' : '';
+          return `<div class="ref-eq-item">${freqLabel}: <strong style="color:#e4e4e7">${sign}${b.gain_db.toFixed(1)} dB</strong></div>`;
+        }).join('');
+      } else {
+        eqEl.innerHTML = '<div class="ref-eq-item" style="color:#52525b">Load your track above to see projected EQ changes</div>';
+      }
+
+      document.getElementById('ref-analyze-box').classList.add('visible');
+      setStatus(status, `✓ ${fp.bpm ? fp.bpm.toFixed(0) + ' BPM' : ''} ${fp.key || ''} ${fp.mode || ''}`.trim(), 'ok');
+    } catch (e) {
+      setStatus(status, `Error: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  /* ── Generate Vibe Prompt button ─────────────────────── */
+  document.getElementById('ref-vibe-btn')?.addEventListener('click', async () => {
+    const btn    = document.getElementById('ref-vibe-btn');
+    const status = document.getElementById('ref-analyze-status');
+    btn.disabled = true;
+    setStatus(status, 'Generating MusicGPT vibe prompt…', 'busy');
+    document.getElementById('vibe-prompt-box').classList.remove('visible');
+
+    try {
+      const fd = new FormData();
+      if (document.querySelector('input[name="src2_type"]:checked').value === 'url') {
+        const u = document.getElementById('src2_url').value.trim();
+        if (!u) throw new Error('Enter a Reference Track URL in the panel below');
+        fd.append('ref_url', u);
+      } else {
+        const f = document.getElementById('src2_file').files[0];
+        if (!f) throw new Error('Upload a Reference Track file in the panel below');
+        fd.append('ref_file', f);
+      }
+
+      const res = await fetch(`${REF_MATCH_BASE}/vibe-prompt`, { method: 'POST', body: fd });
+      if (!res.ok) {
+        let msg = res.statusText;
+        try { const j = await res.json(); msg = j.detail || msg; } catch {}
+        throw new Error(msg);
+      }
+      const data = await res.json();
+
+      document.getElementById('vibe-prompt-text').value = data.prompt || '';
+      document.getElementById('vibe-prompt-box').classList.add('visible');
+      const fp = data.fingerprint || {};
+      setStatus(status, `✓ Vibe prompt generated — ${fp.bpm ? fp.bpm.toFixed(0) + ' BPM' : ''} ${fp.key || ''} ${fp.mode || ''}`.trim(), 'ok');
+    } catch (e) {
+      setStatus(status, `Error: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  /* ── Copy vibe prompt ────────────────────────────────── */
+  document.getElementById('vibe-copy-btn')?.addEventListener('click', () => {
+    const text = document.getElementById('vibe-prompt-text').value;
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('vibe-copy-btn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+    });
+  });
+
   /* v2: shared handler for /trim JSON response (used by run + retrim) */
   async function handleAimeTrimResponse(res) {
     const j = await res.json();
@@ -1389,7 +2012,12 @@
   /* ── run operation ───────────────────────────────────── */
   runBtn.addEventListener('click', async () => {
     runBtn.disabled = true;
-    setStatus(runStatus, currentOp === 'auto_trim' ? 'Analysing, selecting window & trimming…' : 'Processing…', 'busy');
+    const busyMsg = currentOp === 'auto_trim'  ? 'Analysing, selecting window & trimming…'
+                  : currentOp === 'master'     ? 'Measuring loudness & applying mastering chain…'
+                  : currentOp === 'ref_match'  ? 'Analysing reference & matching EQ, dynamics, stereo…'
+                  : currentOp === 'podcast'    ? 'Producing episode — this may take a few minutes…'
+                  : 'Processing…';
+    setStatus(runStatus, busyMsg, 'busy');
     resultPanel.classList.add('hidden');
 
     try {
@@ -1402,14 +2030,27 @@
         throw new Error(msg);
       }
 
+      // master returns JSON with base64 audio + mastering report
+      if (currentOp === 'master') {
+        await handleMasterResponse(res);
+      // ref_match returns JSON with base64 audio + match report
+      } else if (currentOp === 'ref_match') {
+        await handleRefMatchResponse(res);
+      // podcast returns JSON with base64 audio + production report
+      } else if (currentOp === 'podcast') {
+        await handlePodcastResponse(res);
       // v2: auto_trim returns JSON with base64 audio + full metadata + candidates
-      if (currentOp === 'auto_trim') {
+      } else if (currentOp === 'auto_trim') {
         await handleAimeTrimResponse(res);
       } else {
         lastAimeMeta = null;
+        lastRefMatchReport = null;
+        lastPodcastReport  = null;
         document.getElementById('aime-meta')?.classList.add('hidden');
         document.getElementById('aime-candidates')?.classList.add('hidden');
         document.getElementById('ab-controls')?.classList.add('hidden');
+        document.getElementById('ref-match-report')?.classList.remove('visible');
+        document.getElementById('podcast-report')?.classList.remove('visible');
         abMode = 'trimmed';
         if (originalBlobUrl) { URL.revokeObjectURL(originalBlobUrl); originalBlobUrl = null; }
 
@@ -1464,6 +2105,28 @@
     if (op === 'mix')     return { source_url_2: document.getElementById('src2_url').value.trim() || 'file_upload' };
     if (op === 'warmth')  return { intensity: +(+document.getElementById('warmth_intensity').value / 100).toFixed(2), vocal_mode: document.getElementById('warmth_vocal_mode').checked };
     if (op === 'enhance') return { preset: document.getElementById('enhance_preset').value, intensity: +(+document.getElementById('enhance_intensity').value / 100).toFixed(2) };
+    if (op === 'master') return {
+      platform:        document.getElementById('master_platform').value,
+      before_lufs:     lastMasterReport?.before?.lufs     ?? null,
+      after_lufs:      lastMasterReport?.after?.lufs      ?? null,
+      gain_applied_db: lastMasterReport?.gain_applied_db  ?? null,
+    };
+    if (op === 'ref_match') return {
+      eq_bands_applied: lastRefMatchReport?.eq_bands_applied?.length ?? null,
+      ref_bpm:          lastRefMatchReport?.reference_fingerprint?.bpm ?? null,
+      ref_key:          lastRefMatchReport?.reference_fingerprint?.key ?? null,
+      stereo_width_ref: lastRefMatchReport?.stereo_width?.ref ?? null,
+    };
+    if (op === 'podcast') return {
+      noise_reduction:   lastPodcastReport?.noise_reduction  ?? null,
+      voice_eq:          lastPodcastReport?.voice_eq          ?? null,
+      music_added:       lastPodcastReport?.music_added       ?? null,
+      duck_db:           lastPodcastReport?.duck_db           ?? null,
+      before_lufs:       lastPodcastReport?.before_lufs       ?? null,
+      after_lufs:        lastPodcastReport?.after_lufs        ?? null,
+      speech_duration_s: lastPodcastReport?.speech_duration_s ?? null,
+      total_duration_s:  lastPodcastReport?.total_duration_s  ?? null,
+    };
     if (op === 'auto_trim') return {
       target_duration:     +document.getElementById('auto_trim_target_sec').value,
       energy_preference:   document.getElementById('auto_trim_energy_pref').value || null,
@@ -1850,6 +2513,78 @@
       document.getElementById('enhance_preset').value = card.dataset.preset;
     })
   );
+
+  /* ── Podcast response handler ────────────────────────── */
+  async function handlePodcastResponse(res) {
+    const j = await res.json();
+
+    const mimeType = j.audio_format === 'wav' ? 'audio/wav' : 'audio/mpeg';
+    const binary = atob(j.audio_b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: mimeType });
+
+    resultFmt = j.audio_format;
+    if (resultBlob) URL.revokeObjectURL(resultBlob);
+    resultBlobObj = blob;
+    resultBlob    = URL.createObjectURL(blob);
+    dlBtn.href     = resultBlob;
+    dlBtn.download = `podcast_episode.${resultFmt}`;
+
+    lastPodcastReport = j.report || null;
+
+    const r = j.report;
+    if (r) {
+      document.getElementById('pr-before-lufs').textContent  = r.before_lufs != null ? `${r.before_lufs} LUFS` : '—';
+      document.getElementById('pr-after-lufs').textContent   = r.after_lufs  != null ? `${r.after_lufs} LUFS`  : '—';
+      const afterEl = document.getElementById('pr-after-lufs');
+      afterEl.className = 'master-report-val ' +
+        (r.after_lufs != null && Math.abs(r.after_lufs - r.target_lufs) <= 0.5 ? 'compliant' : 'warn');
+
+      const fmtDur = s => s != null ? `${Math.floor(s/60)}m ${Math.round(s%60)}s` : '—';
+      document.getElementById('pr-speech-dur').textContent = fmtDur(r.speech_duration_s);
+      document.getElementById('pr-total-dur').textContent  = fmtDur(r.total_duration_s);
+
+      document.getElementById('pr-changes').innerHTML = (r.changes || [])
+        .map(c => `<div class="master-change-item">${c}</div>`).join('');
+      document.getElementById('podcast-report').classList.add('visible');
+    }
+
+    resultPanel.classList.remove('hidden');
+    saveStatus.textContent = '';
+    saveStatus.className   = 'status';
+    document.getElementById('aime-meta')?.classList.add('hidden');
+    document.getElementById('aime-candidates')?.classList.add('hidden');
+    document.getElementById('ab-controls')?.classList.add('hidden');
+    document.getElementById('ref-match-report')?.classList.remove('visible');
+
+    if (wsResult) { wsResult.destroy(); wsResult = null; }
+    wsResult = WaveSurfer.create({
+      container: '#result-waveform',
+      waveColor: '#065f46',
+      progressColor: '#34d399',
+      cursorColor: '#a7f3d0',
+      height: 80,
+    });
+    wsResult.on('ready', () => {
+      resultTime.textContent = `0:00 / ${fmt(wsResult.getDuration())}`;
+      resultPbBtn.textContent = '▶';
+    });
+    wsResult.on('timeupdate', t => { resultTime.textContent = `${fmt(t)} / ${fmt(wsResult.getDuration())}`; });
+    wsResult.on('finish', () => { resultPbBtn.textContent = '▶'; });
+    wsResult.load(resultBlob);
+  }
+
+  /* ── Duck level slider ───────────────────────────────── */
+  document.getElementById('pod_duck_db')?.addEventListener('input', e => {
+    document.getElementById('pod_duck_label').textContent = `${e.target.value} dB`;
+  });
+
+  /* ── Add music checkbox: toggle music controls visibility ── */
+  document.getElementById('pod_add_music')?.addEventListener('change', e => {
+    document.getElementById('pod-music-controls').style.opacity = e.target.checked ? '1' : '0.4';
+    document.getElementById('pod-music-controls').style.pointerEvents = e.target.checked ? '' : 'none';
+  });
 
   function getSrcUrl() {
     if (document.querySelector('input[name="src_type"]:checked').value === 'url')
