@@ -229,8 +229,8 @@ def compute_warmth_params(analysis: dict, intensity: float, vocal_mode: bool = F
         saturation_drive     = 1.1 + 0.4 * drive_scale * intensity   # 1.1 to 1.5
         saturation_asymmetry = 0.03 + 0.05 * intensity               # 0.03 to 0.08
     else:
-        saturation_drive     = 1.1 + 0.7 * drive_scale * intensity   # 1.1 to 1.8 (was 2.5 — felt heavy)
-        saturation_asymmetry = 0.05 + 0.10 * intensity               # 0.05 to 0.15
+        saturation_drive     = 1.1 + 0.3 * drive_scale * intensity   # 1.1 to 1.4 (capped — avoids audible crunch)
+        saturation_asymmetry = 0.05 + 0.03 * intensity               # 0.05 to 0.08 (capped — warmth not distortion)
 
     # ── Stage 5: Moog LPF ─────────────────────────────────────────────────────
     if vocal_mode:
@@ -407,7 +407,8 @@ def apply_warmth(audio: np.ndarray, sr: int, intensity: float = 0.5, vocal_mode:
                 room_size=params["reverb_room_size"],
                 damping=params["reverb_damping"],
                 wet_level=params["reverb_wet_level"],
-                dry_level=1.0,
+                # dry_level = 1 - wet_level so total energy stays constant (not additive)
+                dry_level=1.0 - params["reverb_wet_level"],
             )
         )
 

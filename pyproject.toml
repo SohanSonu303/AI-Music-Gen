@@ -19,4 +19,7 @@ dependencies = [
     "uvicorn[standard]>=0.42.0",
     "pydub>=0.25.1",
     "pedalboard>=0.9.22",
+    "librosa>=0.11.0",
+    "pyloudnorm>=0.1.1",
+    "scipy>=1.13.0",
 ]

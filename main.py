@@ -2,18 +2,22 @@ import logging
 from fastapi import FastAPI
 from routers import (
     album_router,
+    audio_edit_test_router,
+    auto_edit_router,
     download_router,
     extend_router,
     image_to_song_router,
     inpaint_router,
     lyrics_router,
+    mastering_router,
     music_router,
+    podcast_router,
+    reference_match_router,
     project_router,
     prompt_router,
     queue_router,
     separation_router,
     sound_router,
-    audio_edit_test_router
 )
 
 logging.basicConfig(
@@ -37,6 +41,10 @@ app.include_router(sound_router.router)
 app.include_router(image_to_song_router.router)
 app.include_router(queue_router.router)
 app.include_router(audio_edit_test_router.router)
+app.include_router(auto_edit_router.router)
+app.include_router(mastering_router.router)
+app.include_router(reference_match_router.router)
+app.include_router(podcast_router.router)
 @app.get("/")
 def read_root():
     return {"message": "Hello from FastAPI 🚀"}
