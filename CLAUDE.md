@@ -13,14 +13,24 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 **Request flow:** `main.py` → `routers/` → `services/` → `supabase_client.py`
 
 - `routers/` — HTTP routing only, delegates logic to services and enqueues Celery tasks
-- `services/` — business logic as static methods; `music_service.py` pre-inserts QUEUED records and returns `(records, celery_params)` tuples; `separation_service.py` runs sync background processing via `BackgroundTasks`; `album_service.py` dispatches Celery tasks for album generation
+- `services/` — business logic as static methods; `music_service.py` pre-inserts QUEUED records and returns `(records, celery_params)` tuples; `separation_service.py` runs sync background processing via `BackgroundTasks`; `album_service.py` dispatches Celery tasks for album generation; `warmth_service.py` contains the full AI Analog Warmth DSP pipeline (spectral analysis, adaptive parameter engine, 7-stage processing, vocal mode); `enhancer_service.py` contains the AI Style Enhancer preset engine (6 genre presets, stereo widening, dry/wet blend, loudness match)
 - `models/` — Pydantic models for request validation and API responses
-- `agents/` — LangGraph agents; `album_agent.py` is a 4-node planning graph (analyze → plan → prompts → lyrics)
+- `agents/` — LangGraph agents; `album_agent.py` is a 4-node planning graph (analyze → plan → prompts → lyrics); `auto_edit_agent.py` is a single-node window selector + loop arrangement planner for AIME
 - `tasks/` — Celery tasks; `music_tasks.py` contains `submit_and_poll_task` (all single-track operations) and `process_album_track_task` (album tracks)
 - `celery_app.py` — Celery instance with one queue: `musicgpt_album` (concurrency = `MUSICGPT_MAX_PARALLEL`)
 - `supabase_client.py` — singleton client shared across all services
 
 For full user flow diagrams, sequence flows, and file responsibility breakdown see [userflow.md](userflow.md).
+
+---
+
+## AI Audio Feature Highlights
+
+**AI Analog Warmth** — Fixes the cold, metallic "AI music" sound by running a 7-stage adaptive DSP pipeline (spectral analysis → de-harshness → body EQ → tube saturation → Moog LPF → compression → loudness match) that makes AI-generated tracks feel like they were mixed on real analog gear. *Marketing: "Turn your AI-generated music from digital and harsh into warm, tape-saturated, and production-ready — in one click."*
+
+**AI Style Enhancer** — Applies a genre-matched mastering chain (6 presets: Lo-Fi, EDM, Cinematic, Pop, Chill, Vintage) to colour and shape audio without destroying the original — intensity slider controls dry/wet blend so users go from subtle polish to full genre transformation. *Marketing: "Give your track the sonic identity of a professional genre — lo-fi bedroom vibes, club-ready EDM punch, or cinematic grandeur — instantly."*
+
+**AIME (Automated AI Music Editor / Auto Trim)** — Detects BPM, segments the track structurally (intro/verse/chorus/drop etc.), scores candidate windows by energy and musical quality, then uses an LLM to pick the best section and loop it to any target duration with beat-synced crossfades. *Marketing: "Tell it 'give me a punchy 30-second drop' and it finds, trims, and loops the perfect section of your track — automatically."*
 
 ---
 
@@ -77,6 +87,13 @@ For full user flow diagrams, sequence flows, and file responsibility breakdown s
 4. Enqueues `submit_and_poll_task(operation="remix", ...)` with `source_audio_url`
 5. Celery task downloads audio to temp file, calls MusicGPT `POST /Remix` (multipart/form-data), deletes temp file; updates rows + polls; `conversionType=REMIX`
 
+**Sound generation flow:**
+1. `POST /sound_generator/` validates `user_id`, calls MusicGPT `POST /sound_generator`, inserts 1 row into `sound_generations` with `type='sfx'`, returns immediately
+2. One `BackgroundTask` polls MusicGPT `GET /byId` (`conversionType=SOUND_GENERATOR`) every 5s independently
+3. On `COMPLETED`: downloads the generated audio, uploads it to Supabase Storage at `{SFX_BUCKET_NAME}/{user_id}/{task_id}/{conversion_id}.mp3` or `.wav`, and updates the `sound_generations` row with the public storage URL
+4. `GET /sound_generator/?user_id=<id>&task_id=<id>` fetches the persisted SFX row from `sound_generations`
+5. `GET /sound_generator/status?user_id=<id>&task_id=<id>` returns a debug payload (`is_completed`, `has_audio`, `ready_for_download`, and `error_message`) for quick troubleshooting
+
 **Prompt validation (all generation endpoints):**
 - `POST /music/generateMusic`, `POST /inpaint/inpaint`, `POST /prompt/quick-idea`, `POST /prompt/enhance` all return `422` if the input `prompt` exceeds 280 characters (MusicGPT limit)
 - `submit_and_poll_task` flattens multi-line prompts (joins whitespace with spaces) before sending to MusicGPT for the `music` operation
@@ -130,6 +147,54 @@ Key identifiers:
 `MUSICGPT_MAX_PARALLEL` env var (default `1`) = `--concurrency` passed to Celery worker; bump + restart worker when upgrading MusicGPT plan.
 Worker command: `celery -A celery_app worker -Q musicgpt_album --concurrency=1 --loglevel=info`
 
+**Audio editing flow:**
+1. `GET /test-edit/ui` serves `audio_edit_test.html` — test UI with WaveSurfer.js waveform display
+2. All edit endpoints (`POST /test-edit/{op}`) accept source audio as either a URL (`url` form field, downloaded via httpx) or file upload (`file` form field)
+3. Audio is decoded once to numpy float32 `(channels, samples)` via `pedalboard.io.AudioFile`, all operations run on the array, encoded once to MP3 (`quality="V0"`) or WAV on output — no intermediate files
+4. Operations: `cut` (array slice), `fade` (linspace multiply), `loop` (np.tile), `split` (returns part 1), `mix` (pad + clip add), `overlay` (add at position), `eq` (`PeakFilter`)
+5. `POST /test-edit/save` — receives the already-processed audio blob from the browser (no re-processing), uploads to Supabase Storage at `{user_id}/{project_id}/{uuid}.{fmt}`, inserts one `editing_table` row, returns `{ id, output_url, output_duration }`
+6. Router: `routers/audio_edit_test_router.py`, prefix `/test-edit`, tags `["Audio Edit Testing"]`
+7. Libraries: `pedalboard` (AudioFile I/O, PeakFilter), `numpy` (all array ops), `httpx` (URL download)
+
+**AI Analog Warmth flow:**
+1. `POST /test-edit/warmth` — accepts `file/url` + `intensity` (0.0–1.0, default 0.5) + `vocal_mode` (bool, default false) + `output_format`
+2. Runs `apply_warmth(audio, sr, intensity, vocal_mode)` in threadpool (CPU-bound — keeps event loop free)
+3. `apply_warmth` pipeline in `services/warmth_service.py`:
+   - **Stage 0:** `analyze_spectrum()` — windowed FFT (8192, Hanning, 50% overlap), computes 6 band energies + 5 adaptive metrics (`harshness_ratio`, `spectral_tilt`, `crest_factor_db`, `mid_scoop_ratio`, `overall_rms_db`)
+   - **`compute_warmth_params()`** — maps metrics + intensity → concrete DSP parameter dict; all EQ frequencies and gain values adapt to the track; fully different parameter set when `vocal_mode=True`
+   - **Stage 1:** `HighpassFilter(30Hz)` — subsonic cleanup
+   - **Stage 2:** `PeakFilter` x2 + `HighShelfFilter` — de-harshness; normal mode targets 3.5kHz + 7kHz (metallic sheen); vocal mode targets 5.5kHz + 8.5kHz (sibilance)
+   - **Stage 3:** `LowShelfFilter` + `PeakFilter` — body; normal mode 200Hz + 800Hz; vocal mode 300Hz chest + 3kHz presence
+   - **Stage 4:** `analog_saturate()` (numpy) — asymmetric tanh `x + asymmetry*(x²)` generates even harmonics (2nd, 4th); lighter drive in vocal mode
+   - **Stage 5:** `LadderFilter(LPF24)` — Moog-style 24dB/oct HF rolloff; vocal mode uses higher cutoff (16–18kHz) to preserve breath
+   - **Stage 5.5 (vocal mode only):** `Reverb(room_size, damping=0.8, wet=5–13%)` — small room reverb
+   - **Stage 6:** `Compressor` — glue compression; vocal mode uses lower ratio (1.5:1–2.5:1) + faster attack
+   - **Stage 7:** numpy RMS loudness match (output RMS corrected to input RMS) + `Limiter(-0.5 dBFS)`
+4. `POST /test-edit/warmth/analyze` — runs `analyze_spectrum` + `compute_warmth_params`, returns JSON `{ spectral_profile, diagnostics, planned_adjustments, vocal_mode, summary }`
+5. Save works via existing `POST /test-edit/save` with `operation="warmth"`
+6. Libraries: `pedalboard` (`HighpassFilter`, `HighShelfFilter`, `LowShelfFilter`, `PeakFilter`, `LadderFilter`, `Compressor`, `Limiter`, `Reverb`, `Pedalboard`), `numpy` (FFT, saturation, loudness match)
+
+**AI Style Enhancer flow:**
+1. `GET /test-edit/enhance/presets` — returns 6 preset metadata objects `{ id, name, description, tags }` with no audio required
+2. `POST /test-edit/enhance` — accepts `file/url` + `preset` (lofi/edm/cinematic/pop/chill/vintage) + `intensity` (0.0–1.0, default 0.7) + `output_format`
+3. Runs `apply_preset(audio, sr, preset_id, intensity)` in threadpool; pipeline in `services/enhancer_service.py`:
+   - Measures `input_rms`, `input_peak`, `input_crest` before processing
+   - `dry = audio.copy()` — preserved for blending
+   - Builds and applies a fresh `Pedalboard` chain from `PRESETS[preset_id]["chain_def"]`
+   - **Stereo widening** (EDM/Cinematic/Pop only): numpy mid-side `mid=(L+R)/2`, `side=(L-R)/2*(1+width)`, recombine
+   - **Analog saturation** (Vintage only): reuses `analog_saturate(drive=1.3, asymmetry=0.08)` from `warmth_service.py`
+   - **Dry/wet blend**: `output = dry*(1-intensity) + processed*intensity`
+   - Crest-factor-aware loudness match (same formula as warmth) + `Limiter(-0.5 dBFS)`
+4. Save works via existing `POST /test-edit/save` with `operation="enhance"`
+5. Preset DSP chains:
+   - `lofi`: `HighpassFilter(80Hz)` + `LowShelf(200Hz,+2dB)` + `HighShelf(8kHz,-4dB)` + `Bitcrush(12bit)` + `Chorus` + `Reverb(small)` + `Compressor(3:1)`
+   - `edm`: `HighpassFilter(40Hz)` + `PeakFilter(60Hz,+3dB)` + `PeakFilter(3.5kHz,+2dB)` + `HighShelf(12kHz,+2dB)` + stereo widen + `Compressor(4:1)` + `Limiter`
+   - `cinematic`: `HighpassFilter(30Hz)` + `LowShelf(120Hz,+1.5dB)` + `PeakFilter(800Hz,-1dB)` + `HighShelf(10kHz,+1dB)` + `Reverb(hall,0.7)` + stereo widen + `Compressor(2:1 slow)`
+   - `pop`: `HighpassFilter(60Hz)` + `PeakFilter(200Hz,-1.5dB)` + `PeakFilter(3kHz,+1.5dB)` + `HighShelf(10kHz,+2dB)` + stereo widen + `Compressor(3:1)` + `Limiter`
+   - `chill`: `HighpassFilter(60Hz)` + `LowShelf(200Hz,+1dB)` + `HighShelf(8kHz,-2dB)` + `Chorus(slow)` + `Reverb(medium)` + `Compressor(2:1 slow)`
+   - `vintage`: `HighpassFilter(50Hz)` + `LowShelf(150Hz,+2dB)` + `PeakFilter(3.5kHz,-1dB)` + `HighShelf(12kHz,-2dB)` + `analog_saturate` + `Compressor(2.5:1)` + `Reverb(small)`
+6. Libraries: `pedalboard` (`Bitcrush`, `Chorus`, `Compressor`, `HighpassFilter`, `HighShelfFilter`, `LowShelfFilter`, `Limiter`, `PeakFilter`, `Reverb`, `Pedalboard`), `numpy` (stereo widening, dry/wet blend, loudness match)
+
 **Stem separation flow:**
 1. `POST /separate/` receives `user_id`, `project_id`, and an uploaded audio file (multipart/form-data)
 2. Saves the upload to `inputs/`, inserts a `PENDING` row into `audio_separations`, returns immediately
@@ -137,6 +202,54 @@ Worker command: `celery -A celery_app worker -Q musicgpt_album --concurrency=1 -
 4. On success: uploads `vocals.wav`, `drums.wav`, `bass.wav`, `other.wav` to Supabase Storage at `{user_id}/{project_id}/{job_id}/{stem}.wav`, updates row with public URLs and `COMPLETED`
 5. On failure: sets status to `FAILED` with `error_message`
 6. Cleanup: always deletes only this job's input file, converted WAV, and demucs output subfolder — `inputs/` and `outputs/` root folders are never removed (safe for concurrent jobs)
+
+**AIME (Automated AI Music Editor) flow:**
+
+Router: `routers/auto_edit_router.py`, prefix `/auto-edit`, tags `["Auto Edit"]`
+Service: `services/auto_edit_service.py`
+Agent: `agents/auto_edit_agent.py` (LangGraph single-node window selector + loop arrangement planner)
+Models: `models/auto_edit_model.py` (`AutoTrimRequest`, `AutoTrimResponse`, `CandidateWindow`, `AudioAnalysis`, `SegmentInfo`)
+UI: `audio_edit_test.html` (✦ Auto Trim tab, served via `GET /test-edit/ui`)
+
+**Endpoints:**
+- `POST /auto-edit/analyze` — BPM detection, beat tracking, structural segment labeling; accepts optional `target_duration` + `energy_preference` + `strictness` to also score and return candidate trim windows (used for analyze-before-trim preview)
+- `POST /auto-edit/suggest` — accepts a free-text `description` (e.g. "punchy 30s drop for a DJ mix"), calls LLM to infer and return `{target_duration, energy_preference, strictness, crossfade_beats, explanation}`; used by the "Auto-fill params" button
+- `POST /auto-edit/preview` — analyze + LLM window selection with no audio encoding (~1–3s); returns `{bpm, segments, candidates, chosen_index, window_start, window_end, agent_reasoning}`; used by the "Find Best Section" button to show the AI suggestion before the user commits
+- `POST /auto-edit/trim` — full pipeline: analyze → candidates → LLM/manual select → trim/loop → encode; returns JSON `{audio_b64, audio_format, bpm, window_start, window_end, actual_duration, beat_deviation_ms, was_looped, used_fallback, agent_reasoning, user_description, quality_warning, chosen_index, candidates}`; keeps `X-AIME-*` headers for backward compat
+- `POST /auto-edit/save` — uploads trimmed audio blob to Supabase Storage, inserts `editing_table` row with `operation="auto_trim"`
+
+**Analysis pipeline (`analyze_audio`):**
+- BPM via `librosa.beat.beat_track`; downbeats inferred as every 4th beat (4/4 assumption)
+- Structural segmentation via `librosa.segment.agglomerative` on MFCC
+- **Spectral labeling** (`_label_segments`): multi-feature decision tree using chroma variance (`librosa.feature.chroma_cqt`), spectral contrast, onset density, and energy; 8 labels: `intro | verse | build | chorus | peak | drop | bridge | outro`; graceful fallback to energy-only v1 if spectral extraction fails
+
+**Candidate scoring (`find_candidate_windows`):**
+- Windows anchored to detected downbeats; duration tolerance = ±1 bar
+- 4-axis weighted score: `duration × energy × structural × spectral_quality` (spectral fixed at 10%)
+- **Strictness slider** (0.0–1.0) interpolates weight poles: Musical (18/36/36/10) ↔ Precise (72/9/9/10)
+- **Spectral quality score** (`_spectral_quality_score`): crest factor, centroid stability, harshness ratio (2–5kHz); requires mono array
+- **9 energy preferences**: `high_energy | climax | drop | chorus | verse | build | chill | outro | intro_heavy`; each maps to a label-overlap scoring strategy via `_label_overlap_score`
+
+**LLM agent (`agents/auto_edit_agent.py`):**
+- `select_window(candidates, energy_preference, user_description)` — LangGraph single-node graph; calls OpenRouter DeepSeek v3.2 via `_call_openrouter()`; short-circuits when 1 candidate; falls back to rank-0 on failure
+- `plan_loop_arrangement(segments, target_duration)` — LLM arranges segment indices musically (intro→verse→chorus→outro pattern) to fill target duration when looping; algorithmic fallback
+
+**Trim execution (`execute_trim`):**
+- **Beat-synced crossfade**: `xfade_ms = crossfade_beats × (60/bpm) × 1000`, clamped 20–500ms
+- **Intelligent loop** (`_intelligent_loop`): when `target > source` and ≥3 segments, stitches segments in LLM-planned arrangement order using overlap-add with beat-synced crossfades; falls back to `_loop_to_target` (simple tile)
+- Logarithmic outro fade over last 1.5s; fade-in at trim start boundary
+- Quality checks: beat deviation ms, click detection at cut point
+
+**UI features (`audio_edit_test.html` — ✦ Auto Trim tab):**
+- **Find Best Section**: user types plain-language intent → calls `/suggest` (infers params) → calls `/preview` (LLM selects window) → shows highlighted region on source waveform + AI reasoning + segment labels → "Apply This Trim" button posts `/trim` with `chosen_window_index` (skips LLM on second call)
+- **Auto-fill params only**: calls `/suggest` alone, populates form fields without analyzing audio
+- **Analyze Audio First**: calls `/analyze` with target duration, shows BPM badge + coloured segment timeline + 3 candidate cards as waveform regions
+- **Candidate cards**: all 3 scored candidates shown after trim; AI-chosen highlighted green; "Use this" button on unchosen cards re-posts `/trim` with `chosen_window_index` (skips LLM, ~2× faster)
+- **Strictness slider**: Musical ↔ Balanced ↔ Precise label; passed to both analyze and trim
+- **Crossfade dropdown**: Half beat / 1 beat / 2 beats / 1 bar
+- **A/B compare**: after trim, "A/B Compare" button toggles result waveform between trimmed audio and original; position-synced (trimmed pos ↔ original pos via `window_start` offset); original view shows green (kept) + red-tint (removed) region overlays
+- **Metadata box**: BPM, window timestamps, actual duration, beat-deviation badge, loop/fallback badges, "You:" user description line (purple), "AI:" reasoning line, quality warnings
+- **Segment timeline**: coloured blocks per label (intro=gray, verse=purple, build=amber, chorus=green, peak=emerald, drop=red, bridge=blue, outro=muted)
 
 ---
 
@@ -174,6 +287,14 @@ Worker command: `celery -A celery_app worker -Q musicgpt_album --concurrency=1 -
 `style_palette` (text, nullable — JSON string with `primary_genre`, `bpm_range`, `key_signature`, `instrumentation_family`, `mood_arc`),
 `created_at`, `updated_at`
 
+**`editing_table` table**
+`id` (UUID), `user_id` (TEXT), `project_id` (TEXT),
+`operation` (TEXT — `cut`/`split`/`fade`/`eq`/`loop`/`mix`/`overlay`/`warmth`/`enhance`),
+`operation_params` (JSONB — operation-specific params e.g. `{start_ms, end_ms}`, `{intensity, vocal_mode}`, or `{preset, intensity}`),
+`source_url` (TEXT — input audio URL or `"file_upload"`), `output_url` (TEXT — Supabase Storage public URL),
+`output_format` (TEXT, default `'mp3'`), `output_duration` (FLOAT), `created_at` (TIMESTAMPTZ)
+— only written when user explicitly clicks **Save to Cloud**; never written on preview/download
+
 **`album_tracks` table**
 `id` (UUID), `album_id` (UUID → albums.id CASCADE DELETE), `track_number` (int),
 `track_type` (text: `song` / `background_score` / `instrumental`),
@@ -185,3 +306,7 @@ Worker command: `celery -A celery_app worker -Q musicgpt_album --concurrency=1 -
 `music_metadata_id_2` (UUID, nullable — second conversion's music_metadata row),
 `task_id` (text, nullable), `status` (PENDING/IN_QUEUE/COMPLETED/FAILED/ERROR),
 `energy_level` (int 1–10), `created_at`
+
+**`sound_generations` table**
+`user_id`, `created_at`, `user_name`, `task_id`, `project_id`, `audio_url`, `type`,
+`status`, `updated_at`, `error_message`, `conversion_id`

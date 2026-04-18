@@ -84,7 +84,7 @@ sudo systemctl start redis
 # Verify Redis is running
 redis-cli ping   # should print PONG
 
-# To Step Redis
+# To Stop Redis
 brew services stop redis
 ```
 
@@ -102,9 +102,10 @@ OPENROUTER_API_KEY=...
 REDIS_URL=redis://localhost:6379/0
 
 # Max parallel MusicGPT requests (applies to ALL generation: generateMusic, remix,
-# inpaint, extend, and album tracks). Free plan = 1. Bump to 2 or 3 on a paid plan,
+# inpaint, extend, image-to-song, and album tracks). Free plan = 1. Bump to 2 or 3 on a paid plan,
 # then restart the Celery worker with the matching --concurrency value (see Step 7).
 MUSICGPT_MAX_PARALLEL=1
+
 ```
 
 ---
@@ -126,7 +127,7 @@ Interactive API docs at `http://localhost:8000/docs`
 
 ### Step 7 — Run the Celery worker
 
-**All** MusicGPT submissions — `generateMusic`, `remix`, `inpaint`, `extend`, and album tracks — go through the Celery queue. This is what prevents `429 Too Many Parallel Requests` errors when multiple users are active at the same time.
+**All** MusicGPT submissions — `generateMusic`, `remix`, `inpaint`, `extend`, `image-to-song`, and album tracks — go through the Celery queue. This is what prevents `429 Too Many Parallel Requests` errors when multiple users are active at the same time.
 
 Open a **second terminal tab** and run:
 
@@ -184,9 +185,93 @@ QUEUED → (worker picks up) → IN_QUEUE → (MusicGPT completes) → COMPLETED
 |---------|---------|
 | FastAPI server | `uvicorn main:app --reload` |
 | Celery worker | `celery -A celery_app worker -Q musicgpt_album --concurrency=1` |
+Queue diagnostics:
+`GET /queue/health` returns Redis connectivity + active Celery worker information.
 
 > The Celery worker is **required** for all music generation features.  
 > Without it, requests will be queued (`status=QUEUED`) but never processed.
+
+---
+
+## Features
+
+### AIME — Automated AI Music Editor
+
+Beat-accurate, AI-driven audio trimming to a target duration. Upload any MP3/WAV and AIME analyses its BPM, detects structural segments (intro/verse/build/chorus/peak/drop/bridge/outro), scores candidate trim windows, and uses a DeepSeek LLM agent to select the best musical window.
+
+**Key capabilities:**
+- **Natural language intent** — describe what you want ("punchy 30s drop for a DJ mix") and the AI auto-fills all parameters and finds the best matching section in one click
+- **9 energy preferences** — `high_energy`, `climax`, `drop`, `chorus`, `verse`, `build`, `chill`, `outro`, `intro_heavy`
+- **Strictness slider** — Musical (best-sounding window) ↔ Balanced ↔ Precise (exact duration hit)
+- **Beat-synced crossfades** — crossfade length snapped to beat grid (½ beat / 1 beat / 2 beats / 1 bar)
+- **Intelligent loop restructuring** — when target > source, LLM plans a musical segment arrangement (intro→verse→chorus→outro) instead of robotic tiling
+- **Candidate comparison** — all 3 scored candidates shown with scores; manually override the AI pick with one click
+- **A/B comparison** — toggle between original and trimmed audio with position sync and kept/removed region overlays
+- **Preview before committing** — "Find Best Section" shows the AI suggestion on the waveform before any audio is encoded (~1–3s vs 5–15s for full trim)
+
+**Endpoints:** `POST /auto-edit/analyze` · `POST /auto-edit/suggest` · `POST /auto-edit/preview` · `POST /auto-edit/trim` · `POST /auto-edit/save`
+
+Test UI: `GET /test-edit/ui` → ✦ Auto Trim tab
+
+---
+
+### AI Analog Warmth
+
+Adaptive DSP warmth processing — 7-stage pipeline (subsonic cleanup → de-harshness → body EQ → analog saturation → Moog LPF → compression → loudness match) with all parameters derived from spectral analysis of the source audio. Vocal mode available.
+
+**Endpoints:** `POST /test-edit/warmth` · `POST /test-edit/warmth/analyze`
+
+---
+
+### AI Style Enhancer
+
+6 genre presets (lofi / edm / cinematic / pop / chill / vintage) with dry/wet blend, stereo widening, and crest-factor-aware loudness matching.
+
+**Endpoint:** `POST /test-edit/enhance` · `GET /test-edit/enhance/presets`
+
+---
+
+### Image-to-Song Generation
+
+The `image-to-song` feature allows users to generate music based on an image. Users can upload an image file or provide an image URL, along with optional parameters like prompts, lyrics, and music style preferences. The generated music can be instrumental, vocal, or both.
+
+---
+
+## API Endpoints
+
+### Image-to-Song Endpoint
+
+**POST** `/image-to-song/generate`
+
+#### Request Parameters:
+- **Form Data**:
+  - `project_id` (str, required): The project ID.
+  - `user_id` (str, required): The user ID (must be a valid UUID).
+  - `user_name` (str, optional): The name of the user.
+  - `user_email` (str, optional): The email of the user.
+  - `image_url` (str, optional): URL of the image (provide either `image_url` or `image_file`).
+  - `image_file` (file, optional): Uploaded image file (provide either `image_url` or `image_file`).
+  - `prompt` (str, optional): Text prompt for music generation (max 300 characters).
+  - `lyrics` (str, optional): Lyrics for the song (max 3000 characters).
+  - `make_instrumental` (bool, optional): Whether to generate instrumental music.
+  - `vocal_only` (bool, optional): Whether to generate vocal-only music.
+  - `key` (str, optional): Key of the music.
+  - `bpm` (int, optional): Beats per minute.
+  - `voice_id` (str, optional): ID of the voice to use.
+  - `webhook_url` (str, optional): URL for webhook notifications.
+
+#### Response:
+- A list of `MusicResponse` objects containing metadata about the generated music.
+
+#### Example:
+```bash
+curl -X POST http://localhost:8000/image-to-song/generate \
+  -F "project_id=12345" \
+  -F "user_id=550e8400-e29b-41d4-a716-446655440000" \
+  -F "image_url=https://example.com/image.jpg" \
+  -F "prompt=Generate a calm instrumental track" \
+  -F "make_instrumental=true"
+```
 
 ---
 
@@ -205,12 +290,14 @@ AI-Music-Gen/
 ├── thirdpartyapi.md          # MusicGPT API reference
 ├── sample_requests.md        # Example request bodies for all features
 ├── agents/
-│   └── album_agent.py        # LangGraph 4-node planning agent (analyze→plan→prompts→lyrics)
+│   ├── album_agent.py        # LangGraph 4-node planning agent (analyze→plan→prompts→lyrics)
+│   └── auto_edit_agent.py    # AIME: LangGraph window selector + LLM loop arrangement planner
 ├── migrations/
 │   ├── 001_create_albums.sql          # Creates albums + album_tracks tables
 │   ├── 002_add_script_excerpt.sql     # Adds script_excerpt to album_tracks
 │   ├── 003_add_music_metadata_id_2.sql # Adds music_metadata_id_2 to album_tracks
 │   └── 004_add_musicgpt_task_id.sql   # Adds musicgpt_task_id to music_metadata
+│   └── 005_add_music_metadata_error_message.sql # Adds error_message to music_metadata
 ├── prompts/
 │   ├── musicenhancerprompt.md       # Default master prompt for prompt enhancer
 │   ├── album_script_analysis.md     # System prompt: segment script into track sections
@@ -228,7 +315,10 @@ AI-Music-Gen/
 │   ├── prompt_model.py       # QuickIdeaCreate, PromptEnhanceCreate, PromptResponse
 │   ├── extend_model.py       # ExtendCreate
 │   ├── remix_model.py        # RemixCreate
-│   └── album_model.py        # AlbumCreate, AlbumApprove, AlbumResponse, AlbumTrackResponse, TrackUpdate, TrackReplanRequest
+│   ├── image_to_song_model.py # ImageToSongCreate
+│   ├── album_model.py        # AlbumCreate, AlbumApprove, AlbumResponse, AlbumTrackResponse, TrackUpdate, TrackReplanRequest
+│   ├── sound_model.py        # SoundCreate, SoundResponse
+│   └── auto_edit_model.py    # AIME: AutoTrimRequest, AutoTrimResponse, CandidateWindow, AudioAnalysis, SegmentInfo
 ├── routers/
 │   ├── project_router.py     # POST /projects/, GET /projects/
 │   ├── music_router.py       # POST /music/generateMusic, POST /music/remix
@@ -236,9 +326,13 @@ AI-Music-Gen/
 │   ├── lyrics_router.py      # POST /lyrics/generate
 │   ├── separation_router.py  # POST /separate/
 │   ├── download_router.py    # GET /download/
+│   ├── queue_router.py       # GET /queue/health
 │   ├── prompt_router.py      # POST /prompt/quick-idea, POST /prompt/enhance
+│   ├── sound_router.py       # POST /sound_generator/, GET /sound_generator/, GET /sound_generator/status
+│   ├── image_to_song_router.py # POST /image-to-song/generate
 │   ├── extend_router.py      # POST /extend/extend
-│   └── album_router.py       # POST /album/create, GET /album/{id}, PUT /album/{id}/approve, GET /album/{id}/progress, PUT /album/{id}/tracks/{tid}/replan, PUT /album/{id}/tracks/{tid}/regenerate
+│   ├── album_router.py       # POST /album/create, GET /album/{id}, PUT /album/{id}/approve, GET /album/{id}/progress, PUT /album/{id}/tracks/{tid}/replan, PUT /album/{id}/tracks/{tid}/regenerate
+│   └── auto_edit_router.py   # AIME: POST /auto-edit/analyze|suggest|preview|trim|save
 └── services/
     ├── project_service.py    # Supabase CRUD for projects table
     ├── music_service.py      # Pre-inserts QUEUED music_metadata rows; returns records + Celery params
@@ -246,5 +340,18 @@ AI-Music-Gen/
     ├── separation_service.py # Demucs stem separation, local cleanup, Supabase Storage upload
     ├── download_service.py   # Fetch both music tracks by user_id + task_id from music_metadata
     ├── prompt_service.py     # OpenRouter (DeepSeek) calls for quick idea + prompt enhancer
-    └── album_service.py      # Album CRUD, LangGraph agent runner, Celery task dispatch, completion monitor
+    ├── sound_service.py      # Sound generation, polling, and Supabase Storage upload
+    ├── album_service.py      # Album CRUD, LangGraph agent runner, Celery task dispatch, completion monitor
+    ├── warmth_service.py     # AI Analog Warmth: 7-stage DSP pipeline, spectral analysis, adaptive params
+    ├── enhancer_service.py   # AI Style Enhancer: 6 genre presets, stereo widening, dry/wet blend
+    └── auto_edit_service.py  # AIME: analyze_audio, find_candidate_windows, execute_trim, spectral labeling, intelligent loop
 ```
+
+---
+
+## Notes
+
+- The `image-to-song` feature uses the `MusicService.create_image_to_song` method to pre-insert metadata rows and queue tasks for processing.
+- Validation ensures that either `image_url` or `image_file` is provided, but not both.
+- The Celery worker processes the queued tasks and generates the music using the MusicGPT API.
+- Ensure Redis and Celery are running for this feature to work.

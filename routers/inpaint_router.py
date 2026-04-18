@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from typing import List
 from models.music_model import InpaintCreate, MusicResponse
 from services.music_service import MusicService
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/inpaint", tags=["Inpaint"])
 
 
 @router.post("/inpaint", response_model=List[MusicResponse])
-async def inpaint_music(inpaint: InpaintCreate):
+async def inpaint_music(inpaint: InpaintCreate, background_tasks: BackgroundTasks):
     if len(inpaint.prompt) > 280:
         raise HTTPException(
             status_code=422,
@@ -25,15 +25,26 @@ async def inpaint_music(inpaint: InpaintCreate):
         records, celery_params = await MusicService.inpaint_music(inpaint)
         stable_task_id = records[0]["task_id"]
         record_ids = [r["id"] for r in records]
-        submit_and_poll_task.apply_async(
-            args=["inpaint", stable_task_id, record_ids, celery_params],
-            queue="musicgpt_album",
-        )
+        try:
+            submit_and_poll_task.apply_async(
+                args=["inpaint", stable_task_id, record_ids, celery_params],
+                queue="musicgpt_album",
+            )
+        except Exception as queue_exc:
+            logger.error("Inpaint queueing failed: stable_task_id=%s error=%s", stable_task_id, queue_exc)
+            MusicService.mark_task_failed(stable_task_id, f"Queueing failed: {queue_exc}")
+            raise HTTPException(
+                status_code=503,
+                detail="Queue unavailable (Redis/Celery). Try again after restarting Redis and Celery worker.",
+            )
+        background_tasks.add_task(MusicService.fail_if_stale_queued, stable_task_id)
         logger.info(
             "Inpaint job queued to Celery: stable_task_id=%s source_id=%s",
             stable_task_id, inpaint.id,
         )
         return records
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

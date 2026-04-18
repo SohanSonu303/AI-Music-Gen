@@ -3,6 +3,7 @@ import os
 import logging
 import httpx
 from pathlib import Path
+from fastapi.concurrency import run_in_threadpool
 from models.prompt_model import QuickIdeaCreate, PromptEnhanceCreate
 from supabase_client import supabase
 
@@ -85,7 +86,7 @@ class PromptService:
             "is_lyrics": False,
             "feature_type": "quick_idea",
         }
-        db_response = supabase.table(PROMPTS_TABLE).insert(record).execute()
+        db_response = await run_in_threadpool(lambda: supabase.table(PROMPTS_TABLE).insert(record).execute())
         logger.info("Inserted quick_idea row for user_id=%s", data.user_id)
         return db_response.data[0]
 
@@ -105,6 +106,6 @@ class PromptService:
             "is_lyrics": False,
             "feature_type": "prompt_enhanced",
         }
-        db_response = supabase.table(PROMPTS_TABLE).insert(record).execute()
+        db_response = await run_in_threadpool(lambda: supabase.table(PROMPTS_TABLE).insert(record).execute())
         logger.info("Inserted prompt_enhanced row for user_id=%s", data.user_id)
         return db_response.data[0]

@@ -80,7 +80,7 @@ class AlbumService:
             "track_composition": json.dumps(composition),
             "status": "PLANNING",
         }
-        resp = supabase.table("albums").insert(record).execute()
+        resp = await run_in_threadpool(lambda: supabase.table("albums").insert(record).execute())
         album = resp.data[0]
         album_id = album["id"]
         logger.info("Album created: album_id=%s user_id=%s total=%d composition=%s",
@@ -93,14 +93,14 @@ class AlbumService:
 
     @staticmethod
     async def get_album(album_id: str) -> dict:
-        album = _fetch_album(album_id)
-        tracks = _fetch_tracks(album_id)
+        album = await run_in_threadpool(_fetch_album, album_id)
+        tracks = await run_in_threadpool(_fetch_tracks, album_id)
         return _build_album_response(album, tracks)
 
     @staticmethod
     async def get_user_albums(user_id: str) -> list[dict]:
-        resp = (
-            supabase.table("albums")
+        resp = await run_in_threadpool(
+            lambda: supabase.table("albums")
             .select("*")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
@@ -109,7 +109,7 @@ class AlbumService:
         albums = resp.data or []
         result = []
         for album in albums:
-            tracks = _fetch_tracks(album["id"])
+            tracks = await run_in_threadpool(_fetch_tracks, album["id"])
             result.append(_build_album_response(album, tracks))
         return result
 
@@ -185,7 +185,7 @@ class AlbumService:
 
     @staticmethod
     async def approve_and_generate(album_id: str, data: AlbumApprove, background_tasks: BackgroundTasks) -> dict:
-        album = _fetch_album(album_id)
+        album = await run_in_threadpool(_fetch_album, album_id)
         if album["status"] not in ("PLANNED", "FAILED"):
             raise HTTPException(
                 status_code=400,
@@ -197,14 +197,19 @@ class AlbumService:
             for update in data.track_updates:
                 patch = {k: v for k, v in update.model_dump(exclude={"id"}).items() if v is not None}
                 if patch:
-                    supabase.table("album_tracks").update(patch).eq("id", str(update.id)).execute()
+                    u = update
+                    await run_in_threadpool(
+                        lambda: supabase.table("album_tracks").update(patch).eq("id", str(u.id)).execute()
+                    )
 
-        supabase.table("albums").update({
-            "status": "GENERATING",
-            "updated_at": _now_iso(),
-        }).eq("id", album_id).execute()
+        await run_in_threadpool(
+            lambda: supabase.table("albums").update({
+                "status": "GENERATING",
+                "updated_at": _now_iso(),
+            }).eq("id", album_id).execute()
+        )
 
-        all_tracks = _fetch_tracks(album_id)
+        all_tracks = await run_in_threadpool(_fetch_tracks, album_id)
         # On a retry (album was FAILED), skip tracks that already completed successfully.
         tracks = [t for t in all_tracks if t["status"] not in ("COMPLETED",)]
         logger.info("Approve & generate: album_id=%s total_tracks=%d submitting=%d", album_id, len(all_tracks), len(tracks))
@@ -245,16 +250,16 @@ class AlbumService:
 
         background_tasks.add_task(AlbumService.monitor_album_completion, album_id)
 
-        updated_album = _fetch_album(album_id)
-        tracks = _fetch_tracks(album_id)
+        updated_album = await run_in_threadpool(_fetch_album, album_id)
+        tracks = await run_in_threadpool(_fetch_tracks, album_id)
         return _build_album_response(updated_album, tracks)
 
     # ── Progress ──────────────────────────────────────────────────────────────
 
     @staticmethod
     async def get_album_progress(album_id: str) -> dict:
-        album = _fetch_album(album_id)
-        tracks = _fetch_tracks(album_id)
+        album = await run_in_threadpool(_fetch_album, album_id)
+        tracks = await run_in_threadpool(_fetch_tracks, album_id)
         completed = sum(1 for t in tracks if t["status"] in TERMINAL_STATUSES)
         return {
             "album_id": album_id,
@@ -330,11 +335,13 @@ class AlbumService:
 
         If no excerpt is provided, the existing stored scene context is reused (original behaviour).
         """
-        album = _fetch_album(album_id)
+        album = await run_in_threadpool(_fetch_album, album_id)
         if album["status"] not in ("PLANNED",):
             raise HTTPException(status_code=400, detail="Can only replan tracks when album is PLANNED")
 
-        track_resp = supabase.table("album_tracks").select("*").eq("id", track_id).single().execute()
+        track_resp = await run_in_threadpool(
+            lambda: supabase.table("album_tracks").select("*").eq("id", track_id).single().execute()
+        )
         track = track_resp.data
         if not track or track["album_id"] != album_id:
             raise HTTPException(status_code=404, detail="Track not found")
@@ -416,10 +423,14 @@ class AlbumService:
                 logger.warning("replan_track lyrics generation failed: %s", exc)
 
         if patch:
-            supabase.table("album_tracks").update(patch).eq("id", track_id).execute()
+            await run_in_threadpool(
+                lambda: supabase.table("album_tracks").update(patch).eq("id", track_id).execute()
+            )
             logger.info("Track replanned: track_id=%s custom_excerpt=%s", track_id, bool(custom_script_excerpt))
 
-        updated = supabase.table("album_tracks").select("*").eq("id", track_id).single().execute()
+        updated = await run_in_threadpool(
+            lambda: supabase.table("album_tracks").select("*").eq("id", track_id).single().execute()
+        )
         return updated.data
 
     # ── Enhancement 3: Regenerate single track ────────────────────────────────
@@ -427,11 +438,13 @@ class AlbumService:
     @staticmethod
     async def regenerate_track(album_id: str, track_id: str, background_tasks: BackgroundTasks) -> dict:
         """Re-generate music for one track (after album is GENERATING or COMPLETED)."""
-        album = _fetch_album(album_id)
+        album = await run_in_threadpool(_fetch_album, album_id)
         if album["status"] not in ("GENERATING", "COMPLETED", "FAILED"):
             raise HTTPException(status_code=400, detail="Album must be GENERATING or COMPLETED to regenerate a track")
 
-        track_resp = supabase.table("album_tracks").select("*").eq("id", track_id).single().execute()
+        track_resp = await run_in_threadpool(
+            lambda: supabase.table("album_tracks").select("*").eq("id", track_id).single().execute()
+        )
         track = track_resp.data
         if not track or track["album_id"] != album_id:
             raise HTTPException(status_code=404, detail="Track not found")
@@ -439,7 +452,9 @@ class AlbumService:
         music_type = "music" if track.get("make_instrumental") else "vocal"
 
         # Mark as pending before Celery picks it up
-        supabase.table("album_tracks").update({"status": "PENDING"}).eq("id", track_id).execute()
+        await run_in_threadpool(
+            lambda: supabase.table("album_tracks").update({"status": "PENDING"}).eq("id", track_id).execute()
+        )
 
         process_album_track_task.apply_async(
             args=[
@@ -466,11 +481,15 @@ class AlbumService:
         background_tasks.add_task(AlbumService.monitor_album_completion, album_id)
 
         # Ensure album is in GENERATING state
-        supabase.table("albums").update({
-            "status": "GENERATING",
-            "updated_at": _now_iso(),
-        }).eq("id", album_id).execute()
+        await run_in_threadpool(
+            lambda: supabase.table("albums").update({
+                "status": "GENERATING",
+                "updated_at": _now_iso(),
+            }).eq("id", album_id).execute()
+        )
 
         logger.info("Track regeneration enqueued to Celery: track_id=%s", track_id)
-        updated = supabase.table("album_tracks").select("*").eq("id", track_id).single().execute()
+        updated = await run_in_threadpool(
+            lambda: supabase.table("album_tracks").select("*").eq("id", track_id).single().execute()
+        )
         return updated.data

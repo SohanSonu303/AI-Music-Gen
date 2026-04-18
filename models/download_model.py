@@ -10,6 +10,7 @@ class DownloadTrack(BaseModel):
     duration: Optional[float] = None
     album_cover_path: Optional[str] = None
     generated_lyrics: Optional[str] = None
+    error_message: Optional[str] = None
 
 
 class DownloadResponse(BaseModel):
