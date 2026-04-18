@@ -1,5 +1,7 @@
 import logging
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from auth.clerk_auth import get_current_user
+from models.auth_model import UserContext
 from models.download_model import DownloadResponse
 from services.download_service import DownloadService
 
@@ -10,9 +12,10 @@ router = APIRouter(prefix="/download", tags=["Download"])
 
 @router.get("/", response_model=DownloadResponse)
 def get_download(
-    user_id: str = Query(..., description="User ID"),
     task_id: str = Query(..., description="Task ID returned at music generation time"),
+    user: UserContext = Depends(get_current_user),
 ):
+    user_id = str(user.id)
     logger.info("Download request: user_id=%s task_id=%s", user_id, task_id)
     try:
         return DownloadService.get_tracks(user_id, task_id)

@@ -1,9 +1,13 @@
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
+from auth.clerk_auth import get_current_user
+from config import token_costs
+from models.auth_model import UserContext
 from models.sound_model import SoundCreate, SoundResponse
 from services.sound_service import SoundService
+from services.token_service import require_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -12,9 +16,10 @@ router = APIRouter(prefix="/sound_generator", tags=["Sound Generator"])
 
 @router.get("/status")
 def get_sound_generation_status(
-    user_id: str = Query(..., description="User ID"),
     task_id: str = Query(..., description="Task ID returned at sound generation time"),
+    user: UserContext = Depends(get_current_user),
 ):
+    user_id = str(user.id)
     logger.info("Sound status request: user_id=%s task_id=%s", user_id, task_id)
     try:
         row = SoundService.get_sound_generation(user_id, task_id)
@@ -49,9 +54,10 @@ def get_sound_generation_status(
 
 @router.get("/", response_model=SoundResponse)
 def get_sound_generation(
-    user_id: str = Query(..., description="User ID"),
     task_id: str = Query(..., description="Task ID returned at sound generation time"),
+    user: UserContext = Depends(get_current_user),
 ):
+    user_id = str(user.id)
     logger.info("Sound fetch request: user_id=%s task_id=%s", user_id, task_id)
     try:
         return SoundService.get_sound_generation(user_id, task_id)
@@ -63,15 +69,21 @@ def get_sound_generation(
 
 
 @router.post("/", response_model=SoundResponse)
-async def create_sound(sound: SoundCreate, background_tasks: BackgroundTasks):
+async def create_sound(
+    sound: SoundCreate,
+    background_tasks: BackgroundTasks,
+    user: UserContext = Depends(get_current_user),
+):
+    user_id = str(user.id)
     logger.info(
         "Sound generation request: project_id=%s prompt=%.80s audio_length=%s",
         sound.project_id,
         sound.prompt,
         sound.audio_length,
     )
+    require_tokens(user_id, token_costs.SOUND_GENERATION, "sound_generation")
     try:
-        record = await SoundService.create_sound(sound)
+        record = await SoundService.create_sound(sound, user_id=user_id, user_name=user.full_name or "")
         logger.info(
             "Queuing sound poll task: task_id=%s conversion_id=%s",
             record["task_id"],
@@ -81,7 +93,7 @@ async def create_sound(sound: SoundCreate, background_tasks: BackgroundTasks):
             SoundService.poll_and_store,
             record["task_id"],
             record["conversion_id"],
-            sound.user_id,
+            user_id,
         )
         logger.info(
             "Sound job submitted: task_id=%s conversion_id=%s",

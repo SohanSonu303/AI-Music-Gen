@@ -16,10 +16,14 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
+from auth.clerk_auth import get_current_user
+from config import token_costs
+from models.auth_model import UserContext
+from services.token_service import require_tokens
 from routers.audio_edit_test_router import (
     _encode_to_bytes,
     _read_audio,
@@ -57,6 +61,7 @@ async def process_mastering(
     url: Optional[str] = Form(None, description="Audio URL to download"),
     platform: str = Form(..., description="Platform: spotify | youtube | tiktok | podcast | apple | soundcloud"),
     output_format: str = Form("mp3", description="Output format: mp3 or wav"),
+    user: UserContext = Depends(get_current_user),
 ):
     """
     Apply the platform mastering chain and return base64-encoded audio + report.
@@ -76,6 +81,7 @@ async def process_mastering(
       }
     }
     """
+    require_tokens(str(user.id), token_costs.MASTERING, "mastering")
     if platform not in PLATFORM_PROFILES:
         raise HTTPException(
             status_code=422,
@@ -101,11 +107,11 @@ async def process_mastering(
 @router.post("/save")
 async def save_mastered(
     audio_file: UploadFile = File(..., description="The mastered audio blob from the browser"),
-    user_id: str = Form(...),
     project_id: str = Form(...),
     operation_params: str = Form("{}", description="JSON string with mastering report"),
     source_url: str = Form(""),
     output_format: str = Form("mp3"),
+    user: UserContext = Depends(get_current_user),
 ):
     """
     Upload the already-mastered audio blob to Supabase Storage and insert
@@ -121,10 +127,16 @@ async def save_mastered(
     except Exception:
         op_params = {}
 
+    try:
+        from services.project_service import ProjectService
+        ProjectService.assert_owns_project(project_id, str(user.id))
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
     result = await run_in_threadpool(
         _upload_result,
         data=data,
-        user_id=user_id,
+        user_id=str(user.id),
         project_id=project_id,
         op="mastering",
         op_params=op_params,

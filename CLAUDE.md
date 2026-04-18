@@ -12,13 +12,16 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 
 **Request flow:** `main.py` → `routers/` → `services/` → `supabase_client.py`
 
-- `routers/` — HTTP routing only, delegates logic to services and enqueues Celery tasks
-- `services/` — business logic as static methods; `music_service.py` pre-inserts QUEUED records and returns `(records, celery_params)` tuples; `separation_service.py` runs sync background processing via `BackgroundTasks`; `album_service.py` dispatches Celery tasks for album generation; `warmth_service.py` contains the full AI Analog Warmth DSP pipeline (spectral analysis, adaptive parameter engine, 7-stage processing, vocal mode); `enhancer_service.py` contains the AI Style Enhancer preset engine (6 genre presets, stereo widening, dry/wet blend, loudness match)
-- `models/` — Pydantic models for request validation and API responses
+- `routers/` — HTTP routing only; all user-facing routes require `Depends(get_current_user)` (Clerk JWT); delegates logic to services and enqueues Celery tasks
+- `services/` — business logic as static methods; `music_service.py` pre-inserts QUEUED records and returns `(records, celery_params)` tuples and enforces ownership on inpaint/extend/remix; `separation_service.py` runs sync background processing via `BackgroundTasks`; `album_service.py` dispatches Celery tasks for album generation and enforces ownership via `_fetch_album(album_id, user_id)`; `warmth_service.py` contains the full AI Analog Warmth DSP pipeline (spectral analysis, adaptive parameter engine, 7-stage processing, vocal mode); `enhancer_service.py` contains the AI Style Enhancer preset engine (6 genre presets, stereo widening, dry/wet blend, loudness match); `token_service.py` checks and debits token balances; `user_library_service.py` aggregates all content across tables for a user
+- `auth/clerk_auth.py` — Clerk JWT verification (`verify_clerk_jwt`), FastAPI dependency (`get_current_user → UserContext`), user upsert via `create_user_with_defaults` RPC, `get_scoped_supabase` helper (RLS-scoped client, reserved for future use)
+- `models/auth_model.py` — `UserContext` (id UUID, clerk_user_id, email, full_name, jwt)
+- `config/token_costs.py` — token cost constants per feature
+- `models/` — Pydantic request/response models; **request models do not include user_id/user_name/user_email** — these are injected from the JWT by the router
 - `agents/` — LangGraph agents; `album_agent.py` is a 4-node planning graph (analyze → plan → prompts → lyrics); `auto_edit_agent.py` is a single-node window selector + loop arrangement planner for AIME
 - `tasks/` — Celery tasks; `music_tasks.py` contains `submit_and_poll_task` (all single-track operations) and `process_album_track_task` (album tracks)
 - `celery_app.py` — Celery instance with one queue: `musicgpt_album` (concurrency = `MUSICGPT_MAX_PARALLEL`)
-- `supabase_client.py` — singleton client shared across all services
+- `supabase_client.py` — singleton service-role client (bypasses RLS); used by all services and Celery tasks; application-layer ownership checks compensate
 
 For full user flow diagrams, sequence flows, and file responsibility breakdown see [userflow.md](userflow.md).
 
@@ -51,24 +54,24 @@ For full user flow diagrams, sequence flows, and file responsibility breakdown s
 6. Polls `GET /byId` (`conversionType=INPAINT`); on `COMPLETED`: same download + Storage upload pattern
 
 **Lyrics generation flow:**
-1. `POST /lyrics/generate` receives `user_id`, `user_name`, `prompt`, and optional `style`, `mood`, `theme`, `tone`
+1. `POST /lyrics/generate` receives `prompt` and optional `style`, `mood`, `theme`, `tone`; `user_id` and `user_name` are injected from JWT
 2. Builds a combined prompt by concatenating all non-null context fields (`prompt + mood + style + theme + tone`)
 3. Calls MusicGPT `GET /prompt_to_lyrics?prompt=<combined_prompt>` — synchronous, returns lyrics immediately (no polling)
 4. Inserts one row into `lyrics_metadata` with `is_lyrics=True` and generated lyrics stored in the `prompt` column
 
 **Download flow:**
-1. `GET /download/?user_id=<id>&task_id=<id>` queries `music_metadata` for all rows matching both `user_id` and `task_id`
+1. `GET /download/?task_id=<id>` — `user_id` comes from JWT; queries `music_metadata` for all rows matching both `user_id` and `task_id`
 2. Returns both tracks (one per `conversion_id`) with their `status`, `audio_url`, `title`, `duration`, `album_cover_path`, and `generated_lyrics`
 3. `audio_url` is the Supabase Storage public URL — only populated once polling completes with `COMPLETED` status; `null` while still `IN_QUEUE`
 4. Returns 404 if no rows match; 500 on unexpected DB errors
 
 **Quick idea generation flow:**
-1. `POST /prompt/quick-idea` receives `user_id`, `user_name`, `prompt` (max 280 chars)
+1. `POST /prompt/quick-idea` receives `prompt` (max 280 chars); `user_id`/`user_name` from JWT
 2. Calls OpenRouter API (`deepseek/deepseek-v3.2`) with a built-in system prompt instructing it to generate a concise music concept (mood, genre, tempo, hook) in ≤280 characters
 3. Inserts one row into `user_prompts` with `is_lyrics=False`, `feature_type="quick_idea"`, and AI output stored in `prompt`
 
 **Prompt enhancer flow:**
-1. `POST /prompt/enhance` receives `user_id`, `user_name`, `prompt` (max 280 chars), and optional `master_prompt`
+1. `POST /prompt/enhance` receives `prompt` (max 280 chars) and optional `master_prompt`; `user_id`/`user_name` from JWT
 2. System prompt = user-provided `master_prompt` if given, otherwise loaded from `prompts/musicenhancerprompt.md`; the 280-char output constraint is always appended in code
 3. Calls OpenRouter API (`deepseek/deepseek-v3.2`) to produce a rich, production-ready enhanced prompt
 4. Inserts one row into `user_prompts` with `is_lyrics=False`, `feature_type="prompt_enhanced"`, and AI output stored in `prompt`
@@ -88,7 +91,7 @@ For full user flow diagrams, sequence flows, and file responsibility breakdown s
 5. Celery task downloads audio to temp file, calls MusicGPT `POST /Remix` (multipart/form-data), deletes temp file; updates rows + polls; `conversionType=REMIX`
 
 **Sound generation flow:**
-1. `POST /sound_generator/` validates `user_id`, calls MusicGPT `POST /sound_generator`, inserts 1 row into `sound_generations` with `type='sfx'`, returns immediately
+1. `POST /sound_generator/` receives `project_id`, `prompt`, optional `audio_length`; `user_id`/`user_name` from JWT; calls MusicGPT `POST /sound_generator`, inserts 1 row into `sound_generations` with `type='sfx'`, returns immediately
 2. One `BackgroundTask` polls MusicGPT `GET /byId` (`conversionType=SOUND_GENERATOR`) every 5s independently
 3. On `COMPLETED`: downloads the generated audio, uploads it to Supabase Storage at `{SFX_BUCKET_NAME}/{user_id}/{task_id}/{conversion_id}.mp3` or `.wav`, and updates the `sound_generations` row with the public storage URL
 4. `GET /sound_generator/?user_id=<id>&task_id=<id>` fetches the persisted SFX row from `sound_generations`
@@ -99,7 +102,7 @@ For full user flow diagrams, sequence flows, and file responsibility breakdown s
 - `submit_and_poll_task` flattens multi-line prompts (joins whitespace with spaces) before sending to MusicGPT for the `music` operation
 
 **Album generation flow:**
-1. `POST /album/create` receives `project_id`, `user_id`, `user_name`, `user_email`, `script`, and track composition (`songs`, `background_scores`, `instrumentals`; total 1–20)
+1. `POST /album/create` receives `project_id`, `script`, and track composition (`songs`, `background_scores`, `instrumentals`; total 1–20); `user_id`/`user_name`/`user_email` from JWT
 2. Inserts an `albums` row with `status=PLANNING`, returns immediately
 3. A `BackgroundTask` runs the LangGraph agent (`agents/album_agent.py`) which executes 4 nodes in sequence via OpenRouter (DeepSeek v3.2); all LLM calls go through `_call_openrouter()` which has a 300s read timeout and auto-retries up to 3 times on `ReadTimeout`/`ConnectTimeout` (backoff: 5s, 10s, 15s):
    - `analyze_script` — segments the script into N sections, extracting `scene_summary`, `emotional_arc`, `key_themes`, `script_excerpt`
@@ -253,7 +256,33 @@ UI: `audio_edit_test.html` (✦ Auto Trim tab, served via `GET /test-edit/ui`)
 
 ---
 
+## Auth
+
+**Request flow:** All user-facing endpoints require `Authorization: Bearer <clerk_jwt>`. The `get_current_user` dependency in `auth/clerk_auth.py` verifies the JWT, upserts the user into the `users` table (via `create_user_with_defaults` RPC), and returns a `UserContext(id, clerk_user_id, email, full_name, jwt)`. Routers extract `user_id = str(user.id)` and pass it to services — **never trust a user_id from the request body**.
+
+**Webhooks:** `POST /auth/webhook/clerk` (Svix-signed, no JWT) syncs user.created/updated/deleted events. `POST /payment/webhook/dodo` (payment provider, no JWT) handles subscription events.
+
+**Ownership enforcement:** Services add `.eq("user_id", user_id)` to all user-facing reads. `music_service.py` checks `source["user_id"] == user_id` before inpaint/extend/remix. `album_service.py` passes `user_id` to `_fetch_album` which filters by `user_id`.
+
+**RLS:** All tables have RLS enabled (migration 008) but the service-role client bypasses it — application-layer ownership checks are the primary defense.
+
+**User library:** `GET /library/` returns all content across all tables for the logged-in user.
+
+---
+
 ## Database
+
+**`users` table** (migration 006)
+`id` (UUID PK), `clerk_user_id` (text unique), `email`, `full_name`, `avatar_url`, `created_at`, `updated_at`
+
+**`subscriptions` table** (migration 006)
+`id` (UUID), `user_id` (UUID → users), `plan` (free/pro/enterprise), `status` (active/cancelled/expired), `started_at`, `expires_at`
+
+**`token_balances` table** (migration 006)
+`user_id` (UUID PK → users), `total_tokens`, `used_tokens`, `balance`, `updated_at`
+
+**`token_transactions` table** (migration 006)
+`id` (UUID), `user_id` (UUID → users), `feature`, `tokens_used`, `task_id` (nullable), `created_at`
 
 **`projects` table**
 `id` (int), `project_name`, `created_by`, `created_at`, `updated_at`

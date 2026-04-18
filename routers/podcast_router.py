@@ -12,10 +12,14 @@ import json
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
+from auth.clerk_auth import get_current_user
+from config import token_costs
+from models.auth_model import UserContext
+from services.token_service import require_tokens
 from routers.audio_edit_test_router import (
     _encode_to_bytes,
     _read_audio,
@@ -43,6 +47,7 @@ async def produce_podcast_endpoint(
     intro_duration_s: float = Form(8.0,     description="Intro music duration in seconds"),
     outro_duration_s: float = Form(8.0,     description="Outro music duration in seconds"),
     output_format:    str   = Form("mp3",   description="Output format: mp3 or wav"),
+    user: UserContext = Depends(get_current_user),
 ):
     """
     Produce a podcast episode from raw speech audio.
@@ -55,6 +60,7 @@ async def produce_podcast_endpoint(
 
     Response: { "audio_b64": str, "audio_format": str, "report": {...} }
     """
+    require_tokens(str(user.id), token_costs.PODCAST_PRODUCE, "podcast_produce")
     fmt = _validate_format(output_format)
 
     if speech_file is None and not speech_url:
@@ -110,11 +116,11 @@ async def produce_podcast_endpoint(
 @router.post("/save")
 async def save_podcast(
     audio_file:       UploadFile = File(..., description="The processed podcast audio blob"),
-    user_id:          str        = Form(...),
     project_id:       str        = Form(...),
     operation_params: str        = Form("{}", description="JSON string with production report"),
     source_url:       str        = Form(""),
     output_format:    str        = Form("mp3"),
+    user: UserContext = Depends(get_current_user),
 ):
     """Upload the produced episode to Supabase Storage and insert editing_table row."""
     fmt  = _validate_format(output_format)
@@ -127,10 +133,16 @@ async def save_podcast(
     except Exception:
         op_params = {}
 
+    try:
+        from services.project_service import ProjectService
+        ProjectService.assert_owns_project(project_id, str(user.id))
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
     result = await run_in_threadpool(
         _upload_result,
         data=data,
-        user_id=user_id,
+        user_id=str(user.id),
         project_id=project_id,
         op="podcast_produce",
         op_params=op_params,

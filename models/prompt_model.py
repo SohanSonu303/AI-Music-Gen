@@ -4,14 +4,10 @@ from typing import Optional
 
 
 class QuickIdeaCreate(BaseModel):
-    user_id: str
-    user_name: str
     prompt: str
 
 
 class PromptEnhanceCreate(BaseModel):
-    user_id: str
-    user_name: str
     prompt: str
     master_prompt: Optional[str] = None  # if omitted, falls back to musicenhancerprompt.md
 

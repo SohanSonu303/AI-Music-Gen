@@ -208,3 +208,4 @@ __marimo__/
 
 # MCP config (contains secrets)
 .mcp.json
+.claude/

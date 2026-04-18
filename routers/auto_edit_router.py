@@ -21,10 +21,14 @@ from typing import Optional
 from uuid import uuid4
 
 import numpy as np
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from auth.clerk_auth import get_current_user
+from config import token_costs
+from models.auth_model import UserContext
+from services.token_service import require_tokens
 from routers.audio_edit_test_router import (
     _encode_to_bytes,
     _read_audio,
@@ -220,6 +224,7 @@ async def analyze_track(
         0.5,
         description="(v2) Strictness used when scoring candidates (0.0=musical · 1.0=precise)",
     ),
+    user: UserContext = Depends(get_current_user),
 ):
     """
     Analyse an audio file and return its musical structure.
@@ -274,6 +279,7 @@ async def analyze_track(
 async def suggest_params(
     description: str = Form(..., description="Natural-language description of what the user wants"),
     source_duration: Optional[float] = Form(None, description="Source audio duration in seconds (helps the LLM give realistic suggestions)"),
+    user: UserContext = Depends(get_current_user),
 ):
     """
     Parse a natural-language description and return suggested AIME parameters.
@@ -353,6 +359,7 @@ async def preview_trim(
     energy_preference: Optional[str] = Form(None, description="high_energy | climax | intro_heavy"),
     strictness: float = Form(0.5),
     user_description: Optional[str] = Form(None, description="Free-text user intent"),
+    user: UserContext = Depends(get_current_user),
 ):
     """
     Analyze + LLM window selection — returns metadata only, no audio encoding.
@@ -457,6 +464,7 @@ async def auto_trim(
         None,
         description="(v2) Free-text intent from the user — forwarded to the LLM agent to guide window selection",
     ),
+    user: UserContext = Depends(get_current_user),
 ):
     """
     Beat-accurate auto-trim pipeline.
@@ -474,6 +482,7 @@ async def auto_trim(
     """
     from agents.auto_edit_agent import select_window
 
+    require_tokens(str(user.id), token_costs.AUTO_EDIT, "auto_edit")
     fmt = _validate_format(output_format)
 
     if energy_preference and energy_preference not in VALID_ENERGY_PREFS:
@@ -652,7 +661,6 @@ async def auto_trim(
 @router.post("/save")
 async def save_auto_edit(
     audio_file: UploadFile = File(..., description="Processed audio blob from the browser"),
-    user_id: str = Form(...),
     project_id: str = Form(...),
     operation_params: str = Form(
         "{}",
@@ -664,6 +672,7 @@ async def save_auto_edit(
     ),
     source_url: str = Form(""),
     output_format: str = Form("mp3"),
+    user: UserContext = Depends(get_current_user),
 ):
     """
     Persist a processed Auto Trim result to Supabase Storage and ``editing_table``.
@@ -681,10 +690,16 @@ async def save_auto_edit(
     except Exception:
         op_params = {}
 
+    try:
+        from services.project_service import ProjectService
+        ProjectService.assert_owns_project(project_id, str(user.id))
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
     result = await run_in_threadpool(
         _upload_and_insert,
         data=data,
-        user_id=user_id,
+        user_id=str(user.id),
         project_id=project_id,
         op_params=op_params,
         source_url=source_url,
