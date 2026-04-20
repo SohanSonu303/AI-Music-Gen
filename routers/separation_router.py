@@ -1,10 +1,14 @@
 import uuid
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from auth.clerk_auth import get_current_user
+from config import token_costs
+from models.auth_model import UserContext
 from models.separation_model import SeparationResponse
 from services.separation_service import UPLOAD_DIR, process_audio_background
+from services.token_service import require_tokens
 from supabase_client import supabase
 
 import os
@@ -19,13 +23,15 @@ router = APIRouter(prefix="/separate", tags=["Stem Separation"])
 async def separate_audio(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    user_id: str = Form(...),
     project_id: str = Form(...),
+    user: UserContext = Depends(get_current_user),
 ):
+    user_id = str(user.id)
     logger.info(
         "Stem separation request: user_id=%s project_id=%s filename=%s",
         user_id, project_id, file.filename,
     )
+    require_tokens(user_id, token_costs.SEPARATION, "separation")
     try:
         job_id = str(uuid.uuid4())
         input_path = os.path.join(UPLOAD_DIR, f"{job_id}_{file.filename}")
@@ -55,6 +61,8 @@ async def separate_audio(
         logger.info("Stem separation job queued: job_id=%s", job_id)
         return record.data[0]
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Failed to start separation job: %s", e)
         raise HTTPException(status_code=400, detail=str(e))

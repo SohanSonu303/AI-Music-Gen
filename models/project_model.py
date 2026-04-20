@@ -3,10 +3,9 @@ from datetime import datetime
 from typing import Optional
 
 #reuqired to create project
-class projectCreate(BaseModel) :
-    project_name : str
-    created_by : str
-    user_id: str
+class projectCreate(BaseModel):
+    project_name: str
+    created_by: str
 
 
 #Api response

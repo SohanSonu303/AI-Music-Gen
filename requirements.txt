@@ -3,6 +3,7 @@ demucs
 fastapi
 httpx
 langgraph
+librosa
 pydantic
 python-dotenv
 python-multipart

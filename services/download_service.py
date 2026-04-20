@@ -12,7 +12,7 @@ class DownloadService:
 
         response = (
             supabase.table("music_metadata")
-            .select("conversion_id, status, title, audio_url, duration, album_cover_path, generated_lyrics")
+            .select("conversion_id, status, title, audio_url, duration, album_cover_path, generated_lyrics, error_message")
             .eq("user_id", user_id)
             .eq("task_id", task_id)
             .execute()
