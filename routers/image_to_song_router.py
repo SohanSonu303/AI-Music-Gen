@@ -3,12 +3,16 @@ import os
 import tempfile
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from pydantic import ValidationError
 
+from auth.clerk_auth import get_current_user
+from config import token_costs
+from models.auth_model import UserContext
 from models.image_to_song_model import ImageToSongCreate
 from models.music_model import MusicResponse
 from services.music_service import MusicService
+from services.token_service import require_tokens
 from tasks.music_tasks import submit_and_poll_task
 
 logger = logging.getLogger(__name__)
@@ -17,10 +21,6 @@ router = APIRouter(prefix="/image-to-song", tags=["Image To Song"])
 
 
 def _safe_validation_errors(exc: ValidationError) -> list[dict]:
-    """
-    Convert Pydantic errors into JSON-serializable structures.
-    Pydantic may include non-serializable objects (e.g. ValueError in ctx.error).
-    """
     cleaned: list[dict] = []
     for raw in exc.errors():
         item = dict(raw)
@@ -38,9 +38,6 @@ def _safe_validation_errors(exc: ValidationError) -> list[dict]:
 async def generate_from_image(
     background_tasks: BackgroundTasks,
     project_id: str = Form(...),
-    user_id: str = Form(...),
-    user_name: Optional[str] = Form(""),
-    user_email: Optional[str] = Form(""),
     image_url: Optional[str] = Form(""),
     image_file: Optional[UploadFile] = File(None),
     prompt: Optional[str] = Form(""),
@@ -51,7 +48,9 @@ async def generate_from_image(
     bpm: Optional[int] = Form(None),
     voice_id: Optional[str] = Form(""),
     webhook_url: Optional[str] = Form(""),
+    user: UserContext = Depends(get_current_user),
 ):
+    user_id = str(user.id)
     temp_image_path: Optional[str] = None
     queued = False
 
@@ -65,9 +64,6 @@ async def generate_from_image(
 
         payload = ImageToSongCreate(
             project_id=project_id,
-            user_id=user_id,
-            user_name=user_name,
-            user_email=user_email,
             image_url=image_url,
             image_file_path=temp_image_path,
             prompt=prompt,
@@ -87,7 +83,11 @@ async def generate_from_image(
             "file" if temp_image_path else "url",
         )
 
-        records, celery_params = await MusicService.create_image_to_song(payload)
+        require_tokens(user_id, token_costs.IMAGE_TO_SONG, "image_to_song")
+
+        records, celery_params = await MusicService.create_image_to_song(
+            payload, user_id=user_id, user_name=user.full_name or "", user_email=user.email
+        )
         stable_task_id = records[0]["task_id"]
         record_ids = [r["id"] for r in records]
         try:

@@ -27,6 +27,7 @@ from celery.exceptions import MaxRetriesExceededError
 
 from celery_app import celery_app
 from supabase_client import supabase
+from services.token_service import refund_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,32 @@ BUCKET_NAME = os.environ.get("BUCKET_NAME", "music-generated")
 POLL_INTERVAL_SECONDS = 5
 MAX_POLL_DURATION_SECONDS = 300
 TERMINAL_STATUSES = {"COMPLETED", "ERROR", "FAILED"}
+
+_OPERATION_TOKEN_COSTS = {
+    "music": 10,
+    "remix": 8,
+    "extend": 6,
+    "inpaint": 6,
+    "image_to_song": 10,
+}
+
+
+def _try_refund(user_id: str, operation: str, job_id: str) -> None:
+    """Refund tokens when a job reaches a terminal FAILED/ERROR state."""
+    cost = _OPERATION_TOKEN_COSTS.get(operation, 0)
+    if not cost or not user_id:
+        return
+    try:
+        new_balance = refund_tokens(user_id, cost, job_id)
+        logger.info(
+            "Token refund: operation=%s user_id=%s job_id=%s amount=%d new_balance=%d",
+            operation, user_id, job_id, cost, new_balance,
+        )
+    except Exception as exc:
+        logger.error(
+            "Token refund failed (non-fatal): operation=%s user_id=%s job_id=%s error=%s",
+            operation, user_id, job_id, exc,
+        )
 
 
 class MusicGPTValidationError(Exception):
@@ -326,6 +353,7 @@ def submit_and_poll_task(
     except MusicGPTValidationError as exc:
         logger.error("submit_and_poll_task validation error: operation=%s error=%s", operation, exc)
         _mark_music_failed(stable_task_id, str(exc))
+        _try_refund(params.get("user_id", ""), operation, stable_task_id)
         _cleanup_temp_image(image_file_path)
         return
     except httpx.HTTPError as exc:
@@ -333,6 +361,7 @@ def submit_and_poll_task(
         logger.error("submit_and_poll_task submit error: operation=%s error=%s", operation, exc)
         _mark_music_failed(stable_task_id, str(exc))
         if status_code is not None and 400 <= status_code < 500:
+            _try_refund(params.get("user_id", ""), operation, stable_task_id)
             _cleanup_temp_image(image_file_path)
             return
         try:
@@ -342,17 +371,20 @@ def submit_and_poll_task(
                 "submit_and_poll_task retries exhausted: operation=%s stable_task_id=%s",
                 operation, stable_task_id,
             )
+            _try_refund(params.get("user_id", ""), operation, stable_task_id)
             _cleanup_temp_image(image_file_path)
             return
     except Exception as exc:
         logger.error("submit_and_poll_task unexpected error: operation=%s error=%s", operation, exc)
         _mark_music_failed(stable_task_id, str(exc))
+        _try_refund(params.get("user_id", ""), operation, stable_task_id)
         _cleanup_temp_image(image_file_path)
         return
 
     if not result:
         logger.error("submit_and_poll_task did not receive MusicGPT response payload: operation=%s", operation)
         _mark_music_failed(stable_task_id, "MusicGPT response payload missing")
+        _try_refund(params.get("user_id", ""), operation, stable_task_id)
         _cleanup_temp_image(image_file_path)
         return
 
@@ -407,7 +439,7 @@ def submit_and_poll_task(
     poll_fallback_types = ["IMAGE_TO_SONG"] if operation == "image_to_song" else None
     user_id = params["user_id"]
 
-    _poll_and_store(
+    primary_status = _poll_and_store(
         musicgpt_task_id=musicgpt_task_id,
         conversion_id=conv_id_1,
         user_id=user_id,
@@ -424,6 +456,10 @@ def submit_and_poll_task(
             conversion_type=conversion_type,
             fallback_conversion_types=poll_fallback_types,
         )
+
+    # Refund if the primary conversion failed (user received nothing useful)
+    if primary_status in ("FAILED", "ERROR"):
+        _try_refund(user_id, operation, stable_task_id)
 
     logger.info(
         "Celery: single-track done — operation=%s stable_task_id=%s",
@@ -556,7 +592,7 @@ def _poll_and_store(
     db_task_id: str | None = None,
     conversion_type: str = "MUSIC_AI",
     fallback_conversion_types: list[str] | None = None,
-) -> None:
+) -> str:
     """
     Synchronous poll loop. Called inside Celery tasks.
 
@@ -635,6 +671,12 @@ def _poll_and_store(
                         duration = conversion.get("conversion_duration_2")
                         generated_lyrics = conversion.get("lyrics_2")
 
+                    cover = conversion.get("album_cover_path") or conversion.get("album_cover_thumbnail")
+                    logger.info(
+                        "Poll COMPLETED: musicgpt_task_id=%s conversion_id=%s cover=%s",
+                        musicgpt_task_id, conversion_id, cover,
+                    )
+
                     audio_response = client.get(audio_url)
                     audio_response.raise_for_status()
 
@@ -650,7 +692,7 @@ def _poll_and_store(
                         "audio_url": storage_url,
                         "title": title,
                         "duration": duration,
-                        "album_cover_path": conversion.get("album_cover_path"),
+                        "album_cover_path": cover,
                         "generated_lyrics": generated_lyrics,
                         "error_message": None,
                     })
@@ -665,7 +707,7 @@ def _poll_and_store(
                     "Poll done: db_task_id=%s conversion_id=%s status=%s",
                     db_task_id, conversion_id, status,
                 )
-                return
+                return status
 
         # Timed out
         logger.warning(
@@ -677,6 +719,7 @@ def _poll_and_store(
             f"Polling timed out after {MAX_POLL_DURATION_SECONDS} seconds",
             conversion_id=conversion_id,
         )
+        return "FAILED"
 
     except Exception as exc:
         logger.error(
@@ -684,3 +727,4 @@ def _poll_and_store(
             musicgpt_task_id, conversion_id, exc,
         )
         _mark_music_failed(db_task_id, str(exc), conversion_id=conversion_id)
+        return "FAILED"

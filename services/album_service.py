@@ -37,8 +37,11 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _fetch_album(album_id: str) -> dict:
-    resp = supabase.table("albums").select("*").eq("id", album_id).single().execute()
+def _fetch_album(album_id: str, user_id: str | None = None) -> dict:
+    q = supabase.table("albums").select("*").eq("id", album_id)
+    if user_id:
+        q = q.eq("user_id", user_id)
+    resp = q.single().execute()
     if not resp.data:
         raise HTTPException(status_code=404, detail=f"Album not found: {album_id}")
     return resp.data
@@ -64,7 +67,7 @@ def _build_album_response(album: dict, tracks: list[dict]) -> dict:
 class AlbumService:
 
     @staticmethod
-    async def create_album(data: AlbumCreate, background_tasks: BackgroundTasks) -> dict:
+    async def create_album(data: AlbumCreate, background_tasks: BackgroundTasks, user_id: str, user_name: str, user_email: str) -> dict:
         composition = {
             "songs": data.songs,
             "background_scores": data.background_scores,
@@ -72,9 +75,9 @@ class AlbumService:
         }
         record = {
             "project_id": data.project_id,
-            "user_id": data.user_id,
-            "user_name": data.user_name,
-            "user_email": data.user_email,
+            "user_id": user_id,
+            "user_name": user_name,
+            "user_email": user_email,
             "script": data.script,
             "num_songs": data.total_tracks,
             "track_composition": json.dumps(composition),
@@ -84,7 +87,7 @@ class AlbumService:
         album = resp.data[0]
         album_id = album["id"]
         logger.info("Album created: album_id=%s user_id=%s total=%d composition=%s",
-                    album_id, data.user_id, data.total_tracks, composition)
+                    album_id, user_id, data.total_tracks, composition)
 
         background_tasks.add_task(
             AlbumService.run_album_agent, album_id, data.script, data.total_tracks, composition
@@ -92,8 +95,8 @@ class AlbumService:
         return _build_album_response(album, [])
 
     @staticmethod
-    async def get_album(album_id: str) -> dict:
-        album = await run_in_threadpool(_fetch_album, album_id)
+    async def get_album(album_id: str, user_id: str) -> dict:
+        album = await run_in_threadpool(_fetch_album, album_id, user_id)
         tracks = await run_in_threadpool(_fetch_tracks, album_id)
         return _build_album_response(album, tracks)
 
@@ -184,8 +187,8 @@ class AlbumService:
     # ── Approve & generate ────────────────────────────────────────────────────
 
     @staticmethod
-    async def approve_and_generate(album_id: str, data: AlbumApprove, background_tasks: BackgroundTasks) -> dict:
-        album = await run_in_threadpool(_fetch_album, album_id)
+    async def approve_and_generate(album_id: str, data: AlbumApprove, background_tasks: BackgroundTasks, user_id: str = "") -> dict:
+        album = await run_in_threadpool(_fetch_album, album_id, user_id or None)
         if album["status"] not in ("PLANNED", "FAILED"):
             raise HTTPException(
                 status_code=400,
@@ -257,8 +260,8 @@ class AlbumService:
     # ── Progress ──────────────────────────────────────────────────────────────
 
     @staticmethod
-    async def get_album_progress(album_id: str) -> dict:
-        album = await run_in_threadpool(_fetch_album, album_id)
+    async def get_album_progress(album_id: str, user_id: str = "") -> dict:
+        album = await run_in_threadpool(_fetch_album, album_id, user_id or None)
         tracks = await run_in_threadpool(_fetch_tracks, album_id)
         completed = sum(1 for t in tracks if t["status"] in TERMINAL_STATUSES)
         return {
@@ -325,7 +328,7 @@ class AlbumService:
     # ── Enhancement 3: Replan single track ───────────────────────────────────
 
     @staticmethod
-    async def replan_track(album_id: str, track_id: str, custom_script_excerpt: str | None = None) -> dict:
+    async def replan_track(album_id: str, track_id: str, custom_script_excerpt: str | None = None, user_id: str = "") -> dict:
         """
         Re-run prompt + lyrics generation for a single track.
 
@@ -335,7 +338,7 @@ class AlbumService:
 
         If no excerpt is provided, the existing stored scene context is reused (original behaviour).
         """
-        album = await run_in_threadpool(_fetch_album, album_id)
+        album = await run_in_threadpool(_fetch_album, album_id, user_id or None)
         if album["status"] not in ("PLANNED",):
             raise HTTPException(status_code=400, detail="Can only replan tracks when album is PLANNED")
 
@@ -436,9 +439,9 @@ class AlbumService:
     # ── Enhancement 3: Regenerate single track ────────────────────────────────
 
     @staticmethod
-    async def regenerate_track(album_id: str, track_id: str, background_tasks: BackgroundTasks) -> dict:
+    async def regenerate_track(album_id: str, track_id: str, background_tasks: BackgroundTasks, user_id: str = "") -> dict:
         """Re-generate music for one track (after album is GENERATING or COMPLETED)."""
-        album = await run_in_threadpool(_fetch_album, album_id)
+        album = await run_in_threadpool(_fetch_album, album_id, user_id or None)
         if album["status"] not in ("GENERATING", "COMPLETED", "FAILED"):
             raise HTTPException(status_code=400, detail="Album must be GENERATING or COMPLETED to regenerate a track")
 

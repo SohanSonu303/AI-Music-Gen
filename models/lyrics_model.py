@@ -4,8 +4,6 @@ from typing import Optional
 
 
 class LyricsCreate(BaseModel):
-    user_id: str           # UUID of the user
-    user_name: str
     prompt: str            # base prompt describing the song
     style: Optional[str] = None
     mood: Optional[str] = None

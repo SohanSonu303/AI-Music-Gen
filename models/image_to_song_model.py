@@ -1,14 +1,10 @@
 from typing import Optional
-from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ImageToSongCreate(BaseModel):
     project_id: str
-    user_id: str
-    user_name: str = ""
-    user_email: str = ""
 
     image_url: Optional[str] = None
     image_file_path: Optional[str] = None
@@ -23,7 +19,6 @@ class ImageToSongCreate(BaseModel):
     webhook_url: Optional[str] = None
 
     @field_validator(
-        "user_id",
         "image_url",
         "image_file_path",
         "prompt",
@@ -39,27 +34,6 @@ class ImageToSongCreate(BaseModel):
             return None
         if value == "":
             return None
-        return value
-
-    @field_validator("user_name", "user_email", mode="before")
-    @classmethod
-    def normalize_optional_user_fields(cls, value):
-        if value is None:
-            return ""
-        if isinstance(value, str):
-            cleaned = value.strip()
-            if cleaned.lower() == "string":
-                return ""
-            return cleaned
-        return str(value)
-
-    @field_validator("user_id")
-    @classmethod
-    def validate_user_id_uuid(cls, value: str) -> str:
-        try:
-            UUID(value)
-        except ValueError as exc:
-            raise ValueError("user_id must be a valid UUID string") from exc
         return value
 
     @model_validator(mode="after")
