@@ -92,20 +92,32 @@ brew services stop redis
 
 ### Step 5 — Environment variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root (see `.env.example` for a full template):
 ```
+# Supabase
 SUPABASE_URL=...
-SUPABASE_KEY=...
+SUPABASE_KEY=<service-role-key>     # backend / Celery — bypasses RLS
+SUPABASE_ANON_KEY=<anon-key>        # used for RLS-scoped client (future)
+
+# Clerk auth
+CLERK_JWKS_URL=https://<your-clerk-domain>/.well-known/jwks.json
+CLERK_ISSUER=https://<your-clerk-domain>
+CLERK_WEBHOOK_SECRET=whsec_...      # from Clerk dashboard → Webhooks
+
+# APIs
 MUSICGPT_API_KEY=...
-BUCKET_NAME=music-generated
 OPENROUTER_API_KEY=...
+
+# Storage
+BUCKET_NAME=music-generated
+SFX_BUCKET_NAME=sound-generated
+
+# Redis / Celery
 REDIS_URL=redis://localhost:6379/0
 
-# Max parallel MusicGPT requests (applies to ALL generation: generateMusic, remix,
-# inpaint, extend, image-to-song, and album tracks). Free plan = 1. Bump to 2 or 3 on a paid plan,
-# then restart the Celery worker with the matching --concurrency value (see Step 7).
+# Max parallel MusicGPT requests. Free plan = 1. Bump to 2–3 on a paid plan,
+# then restart the Celery worker with matching --concurrency value (see Step 7).
 MUSICGPT_MAX_PARALLEL=1
-
 ```
 
 ---
@@ -243,22 +255,20 @@ The `image-to-song` feature allows users to generate music based on an image. Us
 
 **POST** `/image-to-song/generate`
 
-#### Request Parameters:
-- **Form Data**:
-  - `project_id` (str, required): The project ID.
-  - `user_id` (str, required): The user ID (must be a valid UUID).
-  - `user_name` (str, optional): The name of the user.
-  - `user_email` (str, optional): The email of the user.
-  - `image_url` (str, optional): URL of the image (provide either `image_url` or `image_file`).
-  - `image_file` (file, optional): Uploaded image file (provide either `image_url` or `image_file`).
-  - `prompt` (str, optional): Text prompt for music generation (max 300 characters).
-  - `lyrics` (str, optional): Lyrics for the song (max 3000 characters).
-  - `make_instrumental` (bool, optional): Whether to generate instrumental music.
-  - `vocal_only` (bool, optional): Whether to generate vocal-only music.
-  - `key` (str, optional): Key of the music.
-  - `bpm` (int, optional): Beats per minute.
-  - `voice_id` (str, optional): ID of the voice to use.
-  - `webhook_url` (str, optional): URL for webhook notifications.
+#### Request Parameters (multipart/form-data):
+Requires `Authorization: Bearer <clerk_jwt>` header. `user_id`/`user_name`/`user_email` come from the JWT — do not send them in the form.
+
+- `project_id` (str, required)
+- `image_url` (str, optional) — provide either this or `image_file`, not both
+- `image_file` (file, optional)
+- `prompt` (str, optional, max 300 chars)
+- `lyrics` (str, optional, max 3000 chars)
+- `make_instrumental` (bool, optional)
+- `vocal_only` (bool, optional)
+- `key` (str, optional)
+- `bpm` (int, optional)
+- `voice_id` (str, optional)
+- `webhook_url` (str, optional)
 
 #### Response:
 - A list of `MusicResponse` objects containing metadata about the generated music.
@@ -266,8 +276,8 @@ The `image-to-song` feature allows users to generate music based on an image. Us
 #### Example:
 ```bash
 curl -X POST http://localhost:8000/image-to-song/generate \
+  -H "Authorization: Bearer <clerk_jwt>" \
   -F "project_id=12345" \
-  -F "user_id=550e8400-e29b-41d4-a716-446655440000" \
   -F "image_url=https://example.com/image.jpg" \
   -F "prompt=Generate a calm instrumental track" \
   -F "make_instrumental=true"
@@ -281,45 +291,54 @@ curl -X POST http://localhost:8000/image-to-song/generate \
 AI-Music-Gen/
 ├── main.py                   # FastAPI app entry point, registers all routers
 ├── celery_app.py             # Celery instance + queue config (musicgpt_album queue)
-├── supabase_client.py        # Supabase singleton client
+├── supabase_client.py        # Supabase singleton (service-role) client
 ├── pyproject.toml            # Project metadata and dependencies (uv)
 ├── requirements.txt          # pip-compatible dependency list
 ├── .env                      # Environment variables (gitignored)
-├── .mcp.json                 # Supabase MCP server config (gitignored, contains PAT)
+├── .env.example              # Env var template with descriptions
 ├── .python-version           # Pins Python 3.12
 ├── thirdpartyapi.md          # MusicGPT API reference
-├── sample_requests.md        # Example request bodies for all features
+├── sample_requests.md        # Example requests for all features
+├── auth/
+│   └── clerk_auth.py         # Clerk JWT verification, get_current_user dependency, get_scoped_supabase
+├── config/
+│   └── token_costs.py        # Token cost constants per feature
 ├── agents/
 │   ├── album_agent.py        # LangGraph 4-node planning agent (analyze→plan→prompts→lyrics)
 │   └── auto_edit_agent.py    # AIME: LangGraph window selector + LLM loop arrangement planner
 ├── migrations/
-│   ├── 001_create_albums.sql          # Creates albums + album_tracks tables
-│   ├── 002_add_script_excerpt.sql     # Adds script_excerpt to album_tracks
-│   ├── 003_add_music_metadata_id_2.sql # Adds music_metadata_id_2 to album_tracks
-│   └── 004_add_musicgpt_task_id.sql   # Adds musicgpt_task_id to music_metadata
-│   └── 005_add_music_metadata_error_message.sql # Adds error_message to music_metadata
+│   ├── 001_create_albums.sql               # albums + album_tracks tables
+│   ├── 002_add_script_excerpt.sql
+│   ├── 003_add_music_metadata_id_2.sql
+│   ├── 004_add_musicgpt_task_id.sql
+│   ├── 005_add_music_metadata_error_message.sql
+│   ├── 006_create_auth_tables.sql          # users, subscriptions, token_balances, token_transactions
+│   ├── 007_migrate_user_id_to_uuid.sql     # migrate string user_ids to UUIDs
+│   └── 008_enable_rls.sql                  # Row Level Security on all user-owned tables
 ├── prompts/
-│   ├── musicenhancerprompt.md       # Default master prompt for prompt enhancer
-│   ├── album_script_analysis.md     # System prompt: segment script into track sections
-│   ├── album_prompt_generation.md   # System prompt: generate MusicGPT prompts per track
-│   └── album_lyrics_generation.md   # System prompt: generate lyrics for vocal tracks
+│   ├── musicenhancerprompt.md
+│   ├── album_script_analysis.md
+│   ├── album_prompt_generation.md
+│   └── album_lyrics_generation.md
 ├── tasks/
-│   ├── __init__.py
-│   └── music_tasks.py        # Celery tasks: submit_and_poll_task (single-track) + process_album_track_task (album)
+│   └── music_tasks.py        # Celery tasks: submit_and_poll_task + process_album_track_task
 ├── models/
-│   ├── project_model.py      # ProjectCreate, ProjectResponse
-│   ├── music_model.py        # MusicCreate, InpaintCreate, MusicResponse, MusicType enum
+│   ├── auth_model.py         # UserContext (JWT claims)
+│   ├── project_model.py      # projectCreate, projectResponse
+│   ├── music_model.py        # MusicCreate, InpaintCreate, MusicResponse, MusicType
 │   ├── lyrics_model.py       # LyricsCreate, LyricsResponse
 │   ├── separation_model.py   # SeparationResponse
 │   ├── download_model.py     # DownloadTrack, DownloadResponse
 │   ├── prompt_model.py       # QuickIdeaCreate, PromptEnhanceCreate, PromptResponse
 │   ├── extend_model.py       # ExtendCreate
 │   ├── remix_model.py        # RemixCreate
-│   ├── image_to_song_model.py # ImageToSongCreate
+│   ├── image_to_song_model.py
 │   ├── album_model.py        # AlbumCreate, AlbumApprove, AlbumResponse, AlbumTrackResponse, TrackUpdate, TrackReplanRequest
 │   ├── sound_model.py        # SoundCreate, SoundResponse
-│   └── auto_edit_model.py    # AIME: AutoTrimRequest, AutoTrimResponse, CandidateWindow, AudioAnalysis, SegmentInfo
+│   └── auto_edit_model.py    # AutoTrimRequest, AutoTrimResponse, CandidateWindow, AudioAnalysis, SegmentInfo
 ├── routers/
+│   ├── auth_router.py        # GET /auth/me, POST /auth/webhook/clerk
+│   ├── payment_router.py     # GET /payment/plans, POST /payment/checkout, GET /payment/subscription, POST /payment/webhook/dodo
 │   ├── project_router.py     # POST /projects/, GET /projects/
 │   ├── music_router.py       # POST /music/generateMusic, POST /music/remix
 │   ├── inpaint_router.py     # POST /inpaint/inpaint
@@ -331,20 +350,27 @@ AI-Music-Gen/
 │   ├── sound_router.py       # POST /sound_generator/, GET /sound_generator/, GET /sound_generator/status
 │   ├── image_to_song_router.py # POST /image-to-song/generate
 │   ├── extend_router.py      # POST /extend/extend
-│   ├── album_router.py       # POST /album/create, GET /album/{id}, PUT /album/{id}/approve, GET /album/{id}/progress, PUT /album/{id}/tracks/{tid}/replan, PUT /album/{id}/tracks/{tid}/regenerate
-│   └── auto_edit_router.py   # AIME: POST /auto-edit/analyze|suggest|preview|trim|save
+│   ├── album_router.py       # POST /album/create, GET /album/user, GET /album/{id}, PUT /album/{id}/approve, GET /album/{id}/progress, PUT /album/{id}/tracks/{tid}/replan, PUT /album/{id}/tracks/{tid}/regenerate
+│   ├── auto_edit_router.py   # POST /auto-edit/analyze|suggest|preview|trim|save
+│   ├── mastering_router.py   # GET /mastering/platforms, POST /mastering/process, POST /mastering/save
+│   ├── reference_match_router.py # POST /reference-match/analyze|process|vibe-prompt|save
+│   ├── podcast_router.py     # POST /podcast/produce|save
+│   ├── audio_edit_test_router.py # GET /test-edit/ui, POST /test-edit/cut|fade|loop|mix|overlay|split|eq|warmth|enhance|save
+│   └── user_library_router.py # GET /library/
 └── services/
-    ├── project_service.py    # Supabase CRUD for projects table
-    ├── music_service.py      # Pre-inserts QUEUED music_metadata rows; returns records + Celery params
-    ├── lyrics_service.py     # MusicGPT lyrics generation, Supabase insert
-    ├── separation_service.py # Demucs stem separation, local cleanup, Supabase Storage upload
-    ├── download_service.py   # Fetch both music tracks by user_id + task_id from music_metadata
-    ├── prompt_service.py     # OpenRouter (DeepSeek) calls for quick idea + prompt enhancer
-    ├── sound_service.py      # Sound generation, polling, and Supabase Storage upload
-    ├── album_service.py      # Album CRUD, LangGraph agent runner, Celery task dispatch, completion monitor
-    ├── warmth_service.py     # AI Analog Warmth: 7-stage DSP pipeline, spectral analysis, adaptive params
-    ├── enhancer_service.py   # AI Style Enhancer: 6 genre presets, stereo widening, dry/wet blend
-    └── auto_edit_service.py  # AIME: analyze_audio, find_candidate_windows, execute_trim, spectral labeling, intelligent loop
+    ├── project_service.py    # CRUD for projects (filtered by user_id)
+    ├── music_service.py      # Pre-inserts QUEUED rows; ownership checks on inpaint/extend/remix
+    ├── lyrics_service.py     # MusicGPT lyrics generation
+    ├── separation_service.py # Demucs stem separation, Storage upload
+    ├── download_service.py   # Fetch tracks by user_id + task_id
+    ├── prompt_service.py     # OpenRouter calls for quick idea + prompt enhancer
+    ├── sound_service.py      # Sound generation, polling, Storage upload
+    ├── album_service.py      # Album CRUD, agent runner, Celery dispatch, completion monitor (ownership enforced)
+    ├── token_service.py      # Token balance checks and debits
+    ├── user_library_service.py # Aggregate all user content across tables
+    ├── warmth_service.py     # AI Analog Warmth: 7-stage DSP pipeline
+    ├── enhancer_service.py   # AI Style Enhancer: 6 genre presets
+    └── auto_edit_service.py  # AIME: analyze, candidate scoring, trim, intelligent loop
 ```
 
 ---

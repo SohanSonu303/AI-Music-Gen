@@ -9,10 +9,15 @@ from uuid import uuid4
 
 import httpx
 import numpy as np
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pedalboard.io import AudioFile
+
+from auth.clerk_auth import get_current_user
+from config import token_costs
+from models.auth_model import UserContext
+from services.token_service import require_tokens
 from pedalboard import (
     PeakFilter,
     HighShelfFilter,
@@ -133,7 +138,9 @@ async def test_cut(
     start_ms: int = Form(..., ge=0, description="Start position in milliseconds"),
     end_ms: int = Form(..., description="End position in milliseconds"),
     output_format: str = Form("mp3", description="Output format: mp3 or wav"),
+    user: UserContext = Depends(get_current_user),
 ):
+    require_tokens(str(user.id), token_costs.AUDIO_EDIT, "audio_edit")
     if end_ms <= start_ms:
         raise HTTPException(status_code=422, detail="end_ms must be greater than start_ms")
     fmt = _validate_format(output_format)
@@ -159,7 +166,9 @@ async def test_fade(
     fade_in_ms: int = Form(0, ge=0, description="Fade-in duration in milliseconds"),
     fade_out_ms: int = Form(0, ge=0, description="Fade-out duration in milliseconds"),
     output_format: str = Form("mp3", description="Output format: mp3 or wav"),
+    user: UserContext = Depends(get_current_user),
 ):
+    require_tokens(str(user.id), token_costs.AUDIO_EDIT, "audio_edit")
     if fade_in_ms == 0 and fade_out_ms == 0:
         raise HTTPException(status_code=422, detail="At least one of fade_in_ms or fade_out_ms must be > 0")
     fmt = _validate_format(output_format)
@@ -191,7 +200,9 @@ async def test_loop(
     url: Optional[str] = Form(None, description="Audio URL to download"),
     count: int = Form(..., ge=2, le=10, description="Number of times to repeat (2–10)"),
     output_format: str = Form("mp3", description="Output format: mp3 or wav"),
+    user: UserContext = Depends(get_current_user),
 ):
+    require_tokens(str(user.id), token_costs.AUDIO_EDIT, "audio_edit")
     fmt = _validate_format(output_format)
     path = await _resolve_source(file, url)
     try:
@@ -212,7 +223,9 @@ async def test_mix(
     file2: Optional[UploadFile] = File(None, description="Upload audio file to mix on top"),
     url2: Optional[str] = Form(None, description="Audio URL to mix on top"),
     output_format: str = Form("mp3", description="Output format: mp3 or wav"),
+    user: UserContext = Depends(get_current_user),
 ):
+    require_tokens(str(user.id), token_costs.AUDIO_EDIT, "audio_edit")
     fmt = _validate_format(output_format)
     path1 = await _resolve_source(file1, url1, label="audio1")
     path2 = await _resolve_source(file2, url2, label="audio2")
@@ -245,7 +258,9 @@ async def test_overlay(
     url2: Optional[str] = Form(None, description="Audio URL to overlay"),
     position_ms: int = Form(..., ge=0, description="Position in base track to place overlay (ms)"),
     output_format: str = Form("mp3", description="Output format: mp3 or wav"),
+    user: UserContext = Depends(get_current_user),
 ):
+    require_tokens(str(user.id), token_costs.AUDIO_EDIT, "audio_edit")
     fmt = _validate_format(output_format)
     path1 = await _resolve_source(file1, url1, label="audio1")
     path2 = await _resolve_source(file2, url2, label="audio2")
@@ -279,7 +294,9 @@ async def test_split(
     url: Optional[str] = Form(None, description="Audio URL to download"),
     split_ms: int = Form(..., ge=0, description="Split point in milliseconds"),
     output_format: str = Form("mp3", description="Output format: mp3 or wav"),
+    user: UserContext = Depends(get_current_user),
 ):
+    require_tokens(str(user.id), token_costs.AUDIO_EDIT, "audio_edit")
     fmt = _validate_format(output_format)
     path = await _resolve_source(file, url)
     try:
@@ -310,7 +327,9 @@ async def test_eq(
     gain: float = Form(..., ge=-20.0, le=20.0, description="Gain in dB (-20 to +20)"),
     q: float = Form(1.41, gt=0, description="Q factor / bandwidth (default 1.41 ≈ 1 octave)"),
     output_format: str = Form("mp3", description="Output format: mp3 or wav"),
+    user: UserContext = Depends(get_current_user),
 ):
+    require_tokens(str(user.id), token_costs.AUDIO_EDIT, "audio_edit")
     fmt = _validate_format(output_format)
     path = await _resolve_source(file, url)
     try:
@@ -332,7 +351,9 @@ async def test_warmth(
     intensity: float = Form(0.5, ge=0.0, le=1.0, description="Warmth intensity 0.0 (subtle) → 1.0 (heavy analog)"),
     vocal_mode: bool = Form(False, description="Enable vocal-optimised processing: sibilance de-essing, chest resonance, room reverb, gentle compression"),
     output_format: str = Form("mp3", description="Output format: mp3 or wav"),
+    user: UserContext = Depends(get_current_user),
 ):
+    require_tokens(str(user.id), token_costs.WARMTH, "warmth")
     fmt = _validate_format(output_format)
     path = await _resolve_source(file, url)
     try:
@@ -351,6 +372,7 @@ async def analyze_warmth(
     url: Optional[str] = Form(None, description="Audio URL to download"),
     intensity: float = Form(0.5, ge=0.0, le=1.0, description="Intensity to simulate when computing planned adjustments"),
     vocal_mode: bool = Form(False, description="Simulate vocal mode parameters"),
+    user: UserContext = Depends(get_current_user),
 ):
     path = await _resolve_source(file, url)
     try:
@@ -375,7 +397,9 @@ async def test_enhance(
     preset: str = Form("lofi", description="Preset id: lofi | edm | cinematic | pop | chill | vintage"),
     intensity: float = Form(0.7, ge=0.0, le=1.0, description="Blend intensity 0.0 (dry) → 1.0 (full preset)"),
     output_format: str = Form("mp3", description="Output format: mp3 or wav"),
+    user: UserContext = Depends(get_current_user),
 ):
+    require_tokens(str(user.id), token_costs.ENHANCE, "enhance")
     fmt  = _validate_format(output_format)
     path = await _resolve_source(file, url)
     try:
@@ -444,12 +468,12 @@ def _upload_result(data: bytes, user_id: str, project_id: str, op: str,
 @router.post("/save")
 async def save_edit(
     audio_file: UploadFile = File(..., description="The processed audio blob from the browser"),
-    user_id: str = Form(...),
     project_id: str = Form(...),
     operation: str = Form(..., description="cut|fade|loop|split|eq|mix|overlay"),
     operation_params: str = Form("{}", description="JSON string of operation params"),
     source_url: str = Form(""),
     output_format: str = Form("mp3"),
+    user: UserContext = Depends(get_current_user),
 ):
     """
     Receives the already-processed audio blob directly from the browser.
@@ -470,9 +494,15 @@ async def save_edit(
     except Exception:
         op_params = {}
 
+    try:
+        from services.project_service import ProjectService
+        ProjectService.assert_owns_project(project_id, str(user.id))
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
     result = await run_in_threadpool(
         _upload_result,
-        data=data, user_id=user_id, project_id=project_id,
+        data=data, user_id=str(user.id), project_id=project_id,
         op=op, op_params=op_params, source_url=source_url, fmt=fmt,
     )
     return JSONResponse(result)

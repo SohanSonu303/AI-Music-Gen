@@ -2,8 +2,10 @@ import logging
 import os
 
 import redis
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from auth.clerk_auth import get_current_user
+from models.auth_model import UserContext
 from celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -12,7 +14,7 @@ router = APIRouter(prefix="/queue", tags=["Queue"])
 
 
 @router.get("/health")
-def queue_health():
+def queue_health(user: UserContext = Depends(get_current_user)):
     redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
     payload: dict = {
         "status": "degraded",

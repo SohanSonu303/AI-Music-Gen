@@ -29,13 +29,13 @@ class MusicService:
     """
 
     @staticmethod
-    async def create_music(data: MusicCreate) -> tuple[list[dict], dict]:
+    async def create_music(data: MusicCreate, user_id: str, user_name: str, user_email: str) -> tuple[list[dict], dict]:
         stable_task_id = str(uuid4())
         base_record = {
             "project_id": data.project_id,
-            "user_id": data.user_id,
-            "user_name": data.user_name,
-            "user_email": data.user_email,
+            "user_id": user_id,
+            "user_name": user_name,
+            "user_email": user_email,
             "type": data.type.value,
             "task_id": stable_task_id,
             "status": "QUEUED",
@@ -53,7 +53,7 @@ class MusicService:
             stable_task_id, data.type.value,
         )
         celery_params = {
-            "user_id": data.user_id,
+            "user_id": user_id,
             "prompt": data.prompt,
             "music_style": data.music_style,
             "lyrics": data.lyrics,
@@ -66,11 +66,13 @@ class MusicService:
         return inserted, celery_params
 
     @staticmethod
-    async def inpaint_music(data: InpaintCreate) -> tuple[list[dict], dict]:
+    async def inpaint_music(data: InpaintCreate, user_id: str) -> tuple[list[dict], dict]:
         source_resp = await run_in_threadpool(lambda: supabase.table("music_metadata").select("*").eq("id", data.id).single().execute())
         source = source_resp.data
         if not source:
             raise ValueError(f"music_metadata row not found: id={data.id}")
+        if source["user_id"] != user_id:
+            raise ValueError("Forbidden: source track does not belong to this user")
 
         stable_task_id = str(uuid4())
         base_record = {
@@ -110,11 +112,13 @@ class MusicService:
         return inserted, celery_params
 
     @staticmethod
-    async def extend_music(data: ExtendCreate) -> tuple[list[dict], dict]:
+    async def extend_music(data: ExtendCreate, user_id: str) -> tuple[list[dict], dict]:
         source_resp = await run_in_threadpool(lambda: supabase.table("music_metadata").select("*").eq("id", str(data.id)).single().execute())
         source = source_resp.data
         if not source:
             raise ValueError(f"music_metadata row not found: id={data.id}")
+        if source["user_id"] != user_id:
+            raise ValueError("Forbidden: source track does not belong to this user")
 
         if not source.get("audio_url"):
             raise ValueError(f"Source row has no audio_url yet (still processing?): id={data.id}")
@@ -157,11 +161,13 @@ class MusicService:
         return inserted, celery_params
 
     @staticmethod
-    async def remix_music(data: RemixCreate) -> tuple[list[dict], dict]:
+    async def remix_music(data: RemixCreate, user_id: str) -> tuple[list[dict], dict]:
         source_resp = await run_in_threadpool(lambda: supabase.table("music_metadata").select("*").eq("id", str(data.id)).single().execute())
         source = source_resp.data
         if not source:
             raise ValueError(f"music_metadata row not found: id={data.id}")
+        if source["user_id"] != user_id:
+            raise ValueError("Forbidden: source track does not belong to this user")
 
         if not source.get("audio_url"):
             raise ValueError(f"Source row has no audio_url yet (still processing?): id={data.id}")
@@ -201,15 +207,15 @@ class MusicService:
         return inserted, celery_params
 
     @staticmethod
-    async def create_image_to_song(data: ImageToSongCreate) -> tuple[list[dict], dict]:
+    async def create_image_to_song(data: ImageToSongCreate, user_id: str, user_name: str, user_email: str) -> tuple[list[dict], dict]:
         stable_task_id = str(uuid4())
         music_type = "vocal" if data.vocal_only else "music"
 
         base_record = {
             "project_id": data.project_id,
-            "user_id": data.user_id,
-            "user_name": data.user_name,
-            "user_email": data.user_email,
+            "user_id": user_id,
+            "user_name": user_name,
+            "user_email": user_email,
             "type": music_type,
             "task_id": stable_task_id,
             "status": "QUEUED",
@@ -225,7 +231,7 @@ class MusicService:
         )
 
         celery_params = {
-            "user_id": data.user_id,
+            "user_id": user_id,
             "image_url": data.image_url,
             "image_file_path": data.image_file_path,
             "prompt": data.prompt,

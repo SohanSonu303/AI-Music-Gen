@@ -17,10 +17,14 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
+from auth.clerk_auth import get_current_user
+from config import token_costs
+from models.auth_model import UserContext
+from services.token_service import require_tokens
 from routers.audio_edit_test_router import (
     _encode_to_bytes,
     _read_audio,
@@ -66,6 +70,7 @@ async def analyze_reference(
     ref_url: Optional[str] = Form(None, description="Reference audio URL"),
     target_file: Optional[UploadFile] = File(None, description="Upload your track (optional for preview)"),
     target_url: Optional[str] = Form(None, description="Your track URL (optional for preview)"),
+    user: UserContext = Depends(get_current_user),
 ):
     """
     Fast analysis preview — returns fingerprint + projected EQ changes without processing audio.
@@ -138,6 +143,7 @@ async def process_reference_match(
     target_file: Optional[UploadFile] = File(None, description="Upload your track"),
     target_url: Optional[str] = Form(None, description="Your track URL"),
     output_format: str = Form("mp3", description="Output format: mp3 or wav"),
+    user: UserContext = Depends(get_current_user),
 ):
     """
     Apply the reference track's sonic character to the target track.
@@ -156,6 +162,7 @@ async def process_reference_match(
       }
     }
     """
+    require_tokens(str(user.id), token_costs.REFERENCE_MATCH, "reference_match")
     fmt = _validate_format(output_format)
     ref_path    = await _resolve_source(ref_file, ref_url, label="ref")
     target_path = await _resolve_source(target_file, target_url, label="target")
@@ -185,6 +192,7 @@ async def process_reference_match(
 async def vibe_prompt(
     ref_file: Optional[UploadFile] = File(None, description="Upload reference audio file"),
     ref_url: Optional[str] = Form(None, description="Reference audio URL"),
+    user: UserContext = Depends(get_current_user),
 ):
     """
     Analyse a reference track and return a MusicGPT-ready generation prompt.
@@ -212,11 +220,11 @@ async def vibe_prompt(
 @router.post("/save")
 async def save_reference_match(
     audio_file: UploadFile = File(..., description="The processed audio blob from the browser"),
-    user_id: str = Form(...),
     project_id: str = Form(...),
     operation_params: str = Form("{}", description="JSON string with matching report"),
     source_url: str = Form(""),
     output_format: str = Form("mp3"),
+    user: UserContext = Depends(get_current_user),
 ):
     """Upload the matched audio to Supabase Storage and insert editing_table row."""
     fmt = _validate_format(output_format)
@@ -229,10 +237,16 @@ async def save_reference_match(
     except Exception:
         op_params = {}
 
+    try:
+        from services.project_service import ProjectService
+        ProjectService.assert_owns_project(project_id, str(user.id))
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
     result = await run_in_threadpool(
         _upload_result,
         data=data,
-        user_id=user_id,
+        user_id=str(user.id),
         project_id=project_id,
         op="reference_match",
         op_params=op_params,

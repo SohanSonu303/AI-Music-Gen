@@ -49,9 +49,7 @@ class SoundService:
         return row
 
     @staticmethod
-    async def create_sound(data: SoundCreate) -> dict:
-        if not data.user_id or not data.user_id.strip():
-            raise ValueError("user_id must not be null or empty")
+    async def create_sound(data: SoundCreate, user_id: str, user_name: str) -> dict:
 
         payload = {"prompt": data.prompt}
         if data.webhook_url:
@@ -75,8 +73,8 @@ class SoundService:
 
         record = {
             "project_id": data.project_id,
-            "user_id": data.user_id,
-            "user_name": data.user_name,
+            "user_id": user_id,
+            "user_name": user_name,
             "type": "sfx",
             "task_id": result["task_id"],
             "conversion_id": result["conversion_id"],

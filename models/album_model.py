@@ -8,9 +8,6 @@ from pydantic import BaseModel, Field, model_validator
 
 class AlbumCreate(BaseModel):
     project_id: str
-    user_id: str
-    user_name: str
-    user_email: str
     script: str
     # Track composition — specify how many of each type you want.
     # At least one field must be > 0; total must be 1–20.

@@ -74,25 +74,25 @@ async def _call_openrouter(system_prompt: str, user_prompt: str, retries: int = 
 
 class PromptService:
     @staticmethod
-    async def generate_quick_idea(data: QuickIdeaCreate) -> dict:
-        logger.info("Quick idea request: user_id=%s prompt=%.80s", data.user_id, data.prompt)
+    async def generate_quick_idea(data: QuickIdeaCreate, user_id: str, user_name: str) -> dict:
+        logger.info("Quick idea request: user_id=%s prompt=%.80s", user_id, data.prompt)
 
         generated = await _call_openrouter(QUICK_IDEA_SYSTEM_PROMPT, data.prompt)
 
         record = {
-            "user_id": data.user_id,
-            "user_name": data.user_name,
+            "user_id": user_id,
+            "user_name": user_name,
             "prompt": generated,
             "is_lyrics": False,
             "feature_type": "quick_idea",
         }
         db_response = await run_in_threadpool(lambda: supabase.table(PROMPTS_TABLE).insert(record).execute())
-        logger.info("Inserted quick_idea row for user_id=%s", data.user_id)
+        logger.info("Inserted quick_idea row for user_id=%s", user_id)
         return db_response.data[0]
 
     @staticmethod
-    async def enhance_prompt(data: PromptEnhanceCreate) -> dict:
-        logger.info("Prompt enhance request: user_id=%s prompt=%.80s", data.user_id, data.prompt)
+    async def enhance_prompt(data: PromptEnhanceCreate, user_id: str, user_name: str) -> dict:
+        logger.info("Prompt enhance request: user_id=%s prompt=%.80s", user_id, data.prompt)
 
         system_prompt = data.master_prompt if data.master_prompt else _load_master_prompt()
         system_prompt = system_prompt + "\nYour response MUST be 280 characters or fewer."
@@ -100,12 +100,12 @@ class PromptService:
         enhanced = await _call_openrouter(system_prompt, data.prompt)
 
         record = {
-            "user_id": data.user_id,
-            "user_name": data.user_name,
+            "user_id": user_id,
+            "user_name": user_name,
             "prompt": enhanced,
             "is_lyrics": False,
             "feature_type": "prompt_enhanced",
         }
         db_response = await run_in_threadpool(lambda: supabase.table(PROMPTS_TABLE).insert(record).execute())
-        logger.info("Inserted prompt_enhanced row for user_id=%s", data.user_id)
+        logger.info("Inserted prompt_enhanced row for user_id=%s", user_id)
         return db_response.data[0]

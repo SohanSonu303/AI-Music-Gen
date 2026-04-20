@@ -15,7 +15,7 @@ LYRICS_TABLE = "user_prompts"   # update if your table has a different name
 
 class LyricsService:
     @staticmethod
-    async def generate_lyrics(data: LyricsCreate) -> dict:
+    async def generate_lyrics(data: LyricsCreate, user_id: str, user_name: str) -> dict:
         # Build enriched prompt from all context fields
         parts = [data.prompt]
         if data.mood:
@@ -33,7 +33,7 @@ class LyricsService:
 
         logger.info(
             "Calling MusicGPT /prompt_to_lyrics: user_id=%s combined_prompt=%.120s",
-            data.user_id, combined_prompt,
+            user_id, combined_prompt,
         )
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
             response = await client.get(
@@ -50,8 +50,8 @@ class LyricsService:
 
         # Store generated lyrics in prompt column; is_lyrics always True for this flow
         record = {
-            "user_id": data.user_id,
-            "user_name": data.user_name,
+            "user_id": user_id,
+            "user_name": user_name,
             "prompt": result.get("lyrics"),
             "is_lyrics": True,
             "style": data.style,
@@ -61,5 +61,5 @@ class LyricsService:
         }
 
         db_response = await run_in_threadpool(lambda: supabase.table(LYRICS_TABLE).insert(record).execute())
-        logger.info("Inserted %s row for user_id=%s", LYRICS_TABLE, data.user_id)
+        logger.info("Inserted %s row for user_id=%s", LYRICS_TABLE, user_id)
         return db_response.data[0]
