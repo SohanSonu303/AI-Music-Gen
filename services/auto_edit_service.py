@@ -505,7 +505,17 @@ def find_candidate_windows(
             ))
 
     candidates.sort(key=lambda w: w.total_score, reverse=True)
-    result = candidates[:top_k]
+
+    # Enforce diversity: skip candidates that overlap an already-selected window.
+    # This ensures the 3 returned candidates cover genuinely different sections
+    # of the track rather than clustering within a few seconds of each other.
+    result: list[Window] = []
+    for c in candidates:
+        overlaps = any(c.start < s.end and c.end > s.start for s in result)
+        if not overlaps:
+            result.append(c)
+            if len(result) == top_k:
+                break
 
     logger.info(
         "find_candidate_windows: %d candidates found (target=%.1fs bpm=%.1f bar=%.2fs), returning top %d",

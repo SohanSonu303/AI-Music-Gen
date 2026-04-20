@@ -1,0 +1,26 @@
+{
+  "task_id": "00000000-0000-0000-0000-000000000000",
+  "user_id": "mock-user",
+  "tracks": [
+    {
+      "conversion_id": "mock-conv-1",
+      "status": "COMPLETED",
+      "title": "Mock Track 1 — Upbeat EDM",
+      "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+      "duration": 372.0,
+      "album_cover_path": null,
+      "generated_lyrics": "Mock lyrics for track 1\nVerse: The beat drops hard tonight\nChorus: We rise and feel the light",
+      "error_message": null
+    },
+    {
+      "conversion_id": "mock-conv-2",
+      "status": "COMPLETED",
+      "title": "Mock Track 2 — Driving Synths",
+      "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+      "duration": 369.0,
+      "album_cover_path": null,
+      "generated_lyrics": "Mock lyrics for track 2\nVerse: Electric dreams fill the air\nChorus: Dance until we get there",
+      "error_message": null
+    }
+  ]
+}

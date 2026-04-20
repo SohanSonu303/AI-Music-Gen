@@ -17,7 +17,13 @@ from pedalboard.io import AudioFile
 from auth.clerk_auth import get_current_user
 from config import token_costs
 from models.auth_model import UserContext
-from services.token_service import require_tokens
+from services.token_service import require_tokens as _require_tokens
+
+
+def require_tokens(user_id: str, amount: int, reason: str, job_id=None):
+    if os.environ.get("DEV_BYPASS_AUTH", "").lower() in ("1", "true", "yes"):
+        return
+    return _require_tokens(user_id, amount, reason, job_id)
 from pedalboard import (
     PeakFilter,
     HighShelfFilter,
@@ -73,6 +79,17 @@ async def _resolve_source(file: Optional[UploadFile], url: Optional[str], label:
     if resp.status_code != 200:
         raise HTTPException(status_code=400, detail=f"Failed to download {label}: HTTP {resp.status_code}")
     content_type = resp.headers.get("content-type", "").lower()
+    if "text/html" in content_type or "application/json" in content_type:
+        raise HTTPException(
+            status_code=400,
+            detail=f"URL for '{label}' did not return audio (got content-type: {content_type}). "
+                   "Check the URL is a direct audio file link and is publicly accessible.",
+        )
+    if len(resp.content) < 1024:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Downloaded '{label}' file is too small ({len(resp.content)} bytes) — likely an error page or empty file.",
+        )
     url_lower = url.lower()
     if "wav" in url_lower or "wav" in content_type:
         suffix = ".wav"
@@ -89,9 +106,16 @@ async def _resolve_source(file: Optional[UploadFile], url: Optional[str], label:
 
 def _read_audio(path: str) -> tuple[np.ndarray, int, int]:
     """Read audio file via pedalboard. Returns (audio, sample_rate, num_channels)."""
-    with AudioFile(path) as f:
-        audio = f.read(f.frames)  # shape: (channels, samples), dtype: float32
-        return audio, f.samplerate, f.num_channels
+    try:
+        with AudioFile(path) as f:
+            audio = f.read(f.frames)  # shape: (channels, samples), dtype: float32
+            return audio, f.samplerate, f.num_channels
+    except Exception as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Could not decode audio file: {exc}. "
+                   "Ensure the file is a valid MP3, WAV, or FLAC.",
+        ) from exc
 
 
 def _ms_to_samples(ms: int, sr: int) -> int:

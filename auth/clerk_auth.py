@@ -109,7 +109,19 @@ def _upsert_user(clerk_user_id: str, email: str, full_name: Optional[str], avata
 # FastAPI dependencies
 # ──────────────────────────────────────────────
 
+_DEV_USER = UserContext(
+    id=UUID("00000000-0000-0000-0000-000000000001"),
+    clerk_user_id="dev_bypass",
+    email="dev@localhost",
+    full_name="Dev User",
+    jwt="dev",
+)
+
+
 def get_current_user(authorization: Optional[str] = Header(default=None)) -> UserContext:
+    if os.environ.get("DEV_BYPASS_AUTH", "").lower() in ("1", "true", "yes"):
+        return _DEV_USER
+
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header required")
     if not authorization.startswith("Bearer "):

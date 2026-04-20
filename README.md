@@ -118,6 +118,18 @@ REDIS_URL=redis://localhost:6379/0
 # Max parallel MusicGPT requests. Free plan = 1. Bump to 2–3 on a paid plan,
 # then restart the Celery worker with matching --concurrency value (see Step 7).
 MUSICGPT_MAX_PARALLEL=1
+
+# Dev auth bypass — skips Clerk JWT verification on every request.
+# get_current_user returns a hardcoded dev stub (id=00000000-…-0001, email=dev@localhost).
+# Also skips token balance checks in audio_edit, auto_edit, reference_match, and podcast routers.
+# Never set to true in production — anyone can call any endpoint without a token.
+DEV_BYPASS_AUTH=false
+
+# Mock mode — skips MusicGPT API, Redis/Celery, and Supabase DB entirely.
+# /generateMusic returns hardcoded QUEUED tracks instantly.
+# /download returns IN_PROGRESS for ~40s then COMPLETED with sample audio URLs.
+# Set to false (or remove) to use the real pipeline.
+IS_MOCK=false
 ```
 
 ---
@@ -296,6 +308,11 @@ AI-Music-Gen/
 ├── requirements.txt          # pip-compatible dependency list
 ├── .env                      # Environment variables (gitignored)
 ├── .env.example              # Env var template with descriptions
+├── mock_data/
+│   ├── mock_state.py                        # In-memory task registry; tracks creation time per task_id for time-based progress simulation
+│   ├── generate_music_response.json         # Template for POST /music/generateMusic mock response (2 QUEUED tracks)
+│   ├── download_inprogress_response.json    # Template for GET /download/ while elapsed < 40s
+│   └── download_completed_response.json     # Template for GET /download/ after 40s (COMPLETED + sample audio URLs)
 ├── .python-version           # Pins Python 3.12
 ├── thirdpartyapi.md          # MusicGPT API reference
 ├── sample_requests.md        # Example requests for all features
