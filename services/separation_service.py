@@ -16,6 +16,25 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
+def get_separation_job(user_id: str, job_id: str) -> dict:
+    logger.info("Fetching separation job: user_id=%s job_id=%s", user_id, job_id)
+    response = (
+        supabase.table("audio_separations")
+        .select(
+            "id, user_id, project_id, original_filename, status, "
+            "vocals_url, drums_url, bass_url, other_url, error_message, created_at"
+        )
+        .eq("user_id", user_id)
+        .eq("id", job_id)
+        .execute()
+    )
+
+    rows = response.data or []
+    if not rows:
+        raise ValueError(f"No separation found for user_id={user_id} job_id={job_id}")
+    return rows[0]
+
+
 def _convert_to_wav(input_path: str) -> str:
     if input_path.lower().endswith(".wav"):
         return input_path
