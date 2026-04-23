@@ -1,0 +1,26 @@
+{
+  "task_id": "00000000-0000-0000-0000-000000000000",
+  "user_id": "mock-user",
+  "tracks": [
+    {
+      "conversion_id": "mock-conv-1",
+      "status": "IN_PROGRESS",
+      "title": null,
+      "audio_url": null,
+      "duration": null,
+      "album_cover_path": null,
+      "generated_lyrics": null,
+      "error_message": null
+    },
+    {
+      "conversion_id": "mock-conv-2",
+      "status": "IN_PROGRESS",
+      "title": null,
+      "audio_url": null,
+      "duration": null,
+      "album_cover_path": null,
+      "generated_lyrics": null,
+      "error_message": null
+    }
+  ]
+}
