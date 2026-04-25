@@ -7,7 +7,7 @@ from auth.clerk_auth import get_current_user
 from config import token_costs
 from models.auth_model import UserContext
 from models.separation_model import SeparationResponse
-from services.separation_service import UPLOAD_DIR, process_audio_background
+from services.separation_service import UPLOAD_DIR, get_separation_job, process_audio_background
 from services.token_service import require_tokens
 from supabase_client import supabase
 
@@ -17,6 +17,22 @@ import shutil
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/separate", tags=["Stem Separation"])
+
+
+@router.get("/{job_id}", response_model=SeparationResponse)
+def get_separation(
+    job_id: str,
+    user: UserContext = Depends(get_current_user),
+):
+    user_id = str(user.id)
+    logger.info("Separation fetch request: user_id=%s job_id=%s", user_id, job_id)
+    try:
+        return get_separation_job(user_id, job_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error("Separation fetch failed: user_id=%s job_id=%s error=%s", user_id, job_id, e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/", response_model=SeparationResponse)

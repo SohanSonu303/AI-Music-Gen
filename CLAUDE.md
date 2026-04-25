@@ -22,6 +22,7 @@ FastAPI backend for an AI music generation app using Supabase (database + file s
 - `tasks/` — Celery tasks; `music_tasks.py` contains `submit_and_poll_task` (all single-track operations) and `process_album_track_task` (album tracks)
 - `celery_app.py` — Celery instance with one queue: `musicgpt_album` (concurrency = `MUSICGPT_MAX_PARALLEL`)
 - `supabase_client.py` — singleton service-role client (bypasses RLS); used by all services and Celery tasks; application-layer ownership checks compensate
+- `mock_data/` — mock mode assets; `mock_state.py` holds the in-memory task registry used by both routers; JSON files are response templates patched at runtime with real `task_id`/`user_id`; controlled by `IS_MOCK` env var
 
 For full user flow diagrams, sequence flows, and file responsibility breakdown see [userflow.md](userflow.md).
 
@@ -36,6 +37,21 @@ For full user flow diagrams, sequence flows, and file responsibility breakdown s
 **AIME (Automated AI Music Editor / Auto Trim)** — Detects BPM, segments the track structurally (intro/verse/chorus/drop etc.), scores candidate windows by energy and musical quality, then uses an LLM to pick the best section and loop it to any target duration with beat-synced crossfades. *Marketing: "Tell it 'give me a punchy 30-second drop' and it finds, trims, and loops the perfect section of your track — automatically."*
 
 ---
+
+**DEV_BYPASS_AUTH (`DEV_BYPASS_AUTH=true` in `.env`):**
+- `get_current_user` in `auth/clerk_auth.py` short-circuits JWT verification and returns a hardcoded `_DEV_USER` stub (`id=00000000-…-0001`, `clerk_user_id="dev_bypass"`, `email="dev@localhost"`, `full_name="Dev User"`) — no `Authorization` header required on any request
+- Also skips token balance checks: `audio_edit_test_router`, `auto_edit_router`, `reference_match_router`, and `podcast_router` each have a local `require_tokens` wrapper that returns early when this flag is set
+- Routers that call `require_tokens` from `token_service` directly (e.g. `music_router`) are **not** bypassed — only the four routers above wrap it
+- Never enable in production — it removes all authentication and token gating
+
+**IS_MOCK mode (`IS_MOCK=true` in `.env`):**
+- Bypasses MusicGPT API, Redis/Celery queuing, Supabase DB reads/writes, and token checks entirely
+- `POST /music/generateMusic` — loads `mock_data/generate_music_response.json`, stamps a fresh UUID `task_id` + real `user_id`/`user_name`/`user_email`/`project_id`/`prompt`, registers `task_id → created_at` in `mock_data.mock_state._mock_task_registry`, returns immediately
+- `GET /download/?task_id=<id>` — checks elapsed seconds since registration via `mock_state.is_mock_completed()`:
+  - elapsed < 40s → returns `download_inprogress_response.json` (both tracks `IN_PROGRESS`, `audio_url=null`)
+  - elapsed ≥ 40s → returns `download_completed_response.json` (both tracks `COMPLETED` with SoundHelix sample MP3 URLs)
+  - unknown `task_id` (e.g. after server restart) → returns completed response immediately
+- Set `IS_MOCK=false` (or remove the var) to resume the real pipeline with no other changes needed
 
 **Music generation flow:**
 1. `POST /music/generateMusic` pre-inserts 2 `music_metadata` rows with `status=QUEUED` and a stable UUID as `task_id`, returns them immediately to the client
