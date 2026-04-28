@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
@@ -7,6 +8,7 @@ from routers import (
     audio_edit_test_router,
     auth_router,
     auto_edit_router,
+    chatbot_router,
     download_router,
     extend_router,
     image_to_song_router,
@@ -31,7 +33,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    from services.chatbot_indexer import build_index
+    build_index()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,6 +66,7 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
+
 app.include_router(auth_router.router)
 app.include_router(project_router.router)
 app.include_router(music_router.router)
@@ -76,6 +87,7 @@ app.include_router(reference_match_router.router)
 app.include_router(podcast_router.router)
 app.include_router(payment_router.router)
 app.include_router(user_library_router.router)
+app.include_router(chatbot_router.router)
 
 
 @app.get("/")

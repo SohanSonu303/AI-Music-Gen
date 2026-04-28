@@ -11,7 +11,8 @@ ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/opt/venv/bin:$PATH" \
+    HF_HUB_OFFLINE=1
 
 # System dependencies
 #   ffmpeg       — required by demucs (stem separation) + audio decoding
@@ -46,6 +47,14 @@ COPY . .
 
 # Install the project itself (cheap — deps already there)
 RUN uv sync --frozen --no-dev
+
+# Pre-download the sentence-transformer model used by the chatbot indexer.
+# This bakes the weights (~90 MB) into the image layer so containers start
+# instantly with no network dependency at runtime.
+# To update the model: change the name here AND in services/chatbot_indexer.py.
+RUN HF_HUB_OFFLINE=0 python -c \
+    "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" \
+    && echo "Model cached."
 
 # Runtime dirs used by stem separation (demucs writes here)
 RUN mkdir -p /app/inputs /app/outputs
