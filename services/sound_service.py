@@ -17,7 +17,7 @@ SFX_BUCKET_NAME = os.environ.get("SFX_BUCKET_NAME", "sfx")
 SOUND_GENERATIONS_TABLE = "sound_generations"
 SOUND_GENERATION_SELECT_FIELDS = (
     "project_id, user_id, user_name, type, task_id, conversion_id, "
-    "status, audio_url, error_message, created_at, updated_at"
+    "status, audio_url, error_message, prompt, created_at, updated_at"
 )
 
 POLL_INTERVAL_SECONDS = 5
@@ -81,6 +81,7 @@ class SoundService:
             "status": "IN_QUEUE",
             "audio_url": None,
             "error_message": None,
+            "prompt": data.prompt,
         }
 
         db_response = await run_in_threadpool(lambda: supabase.table(SOUND_GENERATIONS_TABLE).insert(record).execute())

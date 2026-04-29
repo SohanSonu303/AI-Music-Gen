@@ -29,5 +29,6 @@ class SoundResponse(BaseModel):
     status: str
     audio_url: Optional[str] = None
     error_message: Optional[str] = None
+    prompt: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
