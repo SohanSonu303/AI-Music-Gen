@@ -98,7 +98,6 @@ class SoundService:
         headers = {"Authorization": MUSICGPT_API_KEY}
         params = {
             "conversionType": SOUND_CONVERSION_TYPE,
-            "task_id": task_id,
             "conversion_id": conversion_id,
         }
         elapsed = 0
