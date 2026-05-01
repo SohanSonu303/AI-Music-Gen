@@ -22,7 +22,7 @@ celery_app = Celery(
     "ai_music_gen",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=["tasks.music_tasks"],
+    include=["tasks.music_tasks", "tasks.extraction_task"],
 )
 
 celery_app.conf.update(
@@ -37,5 +37,6 @@ celery_app.conf.update(
     task_routes={
         "tasks.music_tasks.submit_and_poll_task": {"queue": "musicgpt_album"},
         "tasks.music_tasks.process_album_track_task": {"queue": "musicgpt_album"},
+        "tasks.extraction_task.process_extraction_task": {"queue": "musicgpt_album"},
     },
 )

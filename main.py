@@ -10,6 +10,7 @@ from routers import (
     auto_edit_router,
     chatbot_router,
     download_router,
+    extraction_router,
     extend_router,
     image_to_song_router,
     inpaint_router,
@@ -73,6 +74,7 @@ app.include_router(music_router.router)
 app.include_router(inpaint_router.router)
 app.include_router(lyrics_router.router)
 app.include_router(separation_router.router)
+app.include_router(extraction_router.router)
 app.include_router(download_router.router)
 app.include_router(prompt_router.router)
 app.include_router(extend_router.router)
