@@ -6,6 +6,43 @@ If you're new here, start with **Generation** to make your first track, then exp
 
 ---
 
+## What features does this have?
+
+Here is a full list of everything AI Music Gen can do, grouped by category:
+
+**Generation** — turning ideas into music and sound
+- **Music Generation** — create original songs from a text prompt; get two full tracks per request
+- **Lyrics Generation** — write song lyrics with optional style, mood, theme, and tone guidance
+- **Quick Idea** — turn a short brief into a focused, ready-to-use music concept in one click
+- **Prompt Enhancer** — rewrite a basic prompt into a rich, production-ready description
+- **Sound Effect Generation** — generate custom sound effects (SFX) from a text description
+- **Album Generation** — turn a script or story into a full multi-track album (1–20 tracks), with AI planning, prompts, and lyrics per track
+- **Image to Song** — upload a picture and get music that matches its visual mood
+- **Inpaint** — regenerate a specific section inside an existing track without touching the rest
+- **Extend** — add new material to the end of any track to make it longer
+- **Remix** — reimagine an existing track with a new prompt, lyrics, vocal gender, or style
+
+**Editing** — shaping and polishing audio
+- **Cut / Fade / Loop / Split / Mix / Overlay / EQ** — core browser-based audio editing toolkit with live waveform preview
+- **AI Analog Warmth** — remove the cold "digital" sound from AI-generated tracks using an adaptive 7-stage analog-style DSP pipeline; includes vocal mode and intensity slider
+- **AI Style Enhancer** — apply a genre-matched mastering chain (Lo-Fi, EDM, Cinematic, Pop, Chill, Vintage) with a dry/wet intensity slider
+- **AIME (Auto Trim)** — automatically find the best section of a track, trim it to an exact length, and loop it with beat-synced crossfades; accepts plain-language descriptions like *"punchy 30-second drop"*
+- **Stem Separation** — split any song into four clean stems: vocals, drums, bass, and other
+
+**Production** — preparing tracks for the real world
+- **Platform Mastering** — master to the loudness and tonal targets of Spotify, Apple Music, YouTube, TikTok, broadcast, cinema, and more
+- **Reference Track Matching** — make your track sound like a reference song you upload
+- **Podcast Producer** — turn spoken-word audio into a polished, distribution-ready podcast episode
+
+**Account & Workspace** — managing your work
+- **Sign-in & Accounts** — secure account that saves your work and syncs across devices
+- **Projects** — organise tracks, lyrics, edits, and albums into named project folders
+- **User Library** — browse, search, preview, and download everything you have ever created
+- **Tokens & Billing** — transparent token-based pricing with balance, transaction history, and subscription management
+- **Job Queue & Status** — live visibility into every queued, in-progress, completed, or failed generation task
+
+---
+
 ## Generation
 
 Tools that turn an idea, a prompt, or a piece of source material into brand-new music, lyrics, or sound.
