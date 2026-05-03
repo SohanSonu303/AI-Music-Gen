@@ -219,10 +219,8 @@ def submit_and_poll_task(
                 for field in ("music_style", "lyrics", "gender", "voice_id", "output_length"):
                     if params.get(field):
                         payload[field] = params[field]
-                if params.get("make_instrumental"):
-                    payload["make_instrumental"] = True
-                if params.get("vocal_only"):
-                    payload["vocal_only"] = True
+                payload["make_instrumental"] = bool(params.get("make_instrumental", False))
+                payload["vocal_only"] = bool(params.get("vocal_only", False))
                 response = client.post(
                     f"{MUSICGPT_BASE_URL}/MusicAI",
                     json=payload,
@@ -503,8 +501,7 @@ def process_album_track_task(
         payload["music_style"] = music_style
     if lyrics:
         payload["lyrics"] = lyrics
-    if make_instrumental:
-        payload["make_instrumental"] = True
+    payload["make_instrumental"] = make_instrumental
     if gender:
         payload["gender"] = gender
     if output_length:
@@ -621,7 +618,6 @@ def _poll_and_store(
             while elapsed < MAX_POLL_DURATION_SECONDS:
                 params = {
                     "conversionType": active_conversion_type,
-                    "task_id": musicgpt_task_id,
                     "conversion_id": conversion_id,
                 }
                 try:
@@ -648,8 +644,8 @@ def _poll_and_store(
                 status = conversion["status"]
 
                 logger.info(
-                    "Poll [%ds]: musicgpt_task_id=%s conversion_id=%s conversionType=%s status=%s",
-                    elapsed, musicgpt_task_id, conversion_id, active_conversion_type, status,
+                    "Poll [%ds]: musicgpt_task_id=%s conversion_id=%s conversionType=%s status=%s message=%s",
+                    elapsed, musicgpt_task_id, conversion_id, active_conversion_type, status, conversion.get("message"),
                 )
 
                 if status not in TERMINAL_STATUSES:
@@ -657,19 +653,33 @@ def _poll_and_store(
                     elapsed += POLL_INTERVAL_SECONDS
                     continue
 
+                if status != "COMPLETED":
+                    logger.error(
+                        "MusicGPT job failed: musicgpt_task_id=%s conversion_id=%s status=%s response=%s",
+                        musicgpt_task_id, conversion_id, status, conversion,
+                    )
+
                 update_payload: dict = {"status": status}
 
                 if status == "COMPLETED":
-                    if conversion_id == conversion.get("conversion_id_1"):
-                        audio_url = conversion.get("conversion_path_1")
-                        title = conversion.get("title_1")
-                        duration = conversion.get("conversion_duration_1")
-                        generated_lyrics = conversion.get("lyrics_1")
-                    else:
-                        audio_url = conversion.get("conversion_path_2")
-                        title = conversion.get("title_2")
-                        duration = conversion.get("conversion_duration_2")
-                        generated_lyrics = conversion.get("lyrics_2")
+                    # Flat format: single conversion returned (new API style)
+                    audio_url = conversion.get("conversion_path")
+                    title = conversion.get("title")
+                    duration = conversion.get("conversion_duration")
+                    generated_lyrics = conversion.get("lyrics")
+
+                    # _1/_2 format: both conversions returned together (old API style)
+                    if not audio_url:
+                        if conversion_id == conversion.get("conversion_id_1"):
+                            audio_url = conversion.get("conversion_path_1")
+                            title = title or conversion.get("title_1")
+                            duration = duration or conversion.get("conversion_duration_1")
+                            generated_lyrics = generated_lyrics or conversion.get("lyrics_1")
+                        else:
+                            audio_url = conversion.get("conversion_path_2")
+                            title = title or conversion.get("title_2")
+                            duration = duration or conversion.get("conversion_duration_2")
+                            generated_lyrics = generated_lyrics or conversion.get("lyrics_2")
 
                     cover = conversion.get("album_cover_path") or conversion.get("album_cover_thumbnail")
                     logger.info(
