@@ -59,7 +59,7 @@ def process_audio_background(job_id: str, input_path: str, user_id: str, project
         base_name = os.path.splitext(os.path.basename(wav_path))[0]
         output_folder = os.path.join(OUTPUT_DIR, "htdemucs", base_name)
 
-        command = [sys.executable, "-m", "demucs", "--out", OUTPUT_DIR, wav_path]
+        command = [sys.executable, "-m", "demucs", "--segment", "10", "--out", OUTPUT_DIR, wav_path]
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode != 0:
             raise Exception(f"Demucs failed: {result.stderr}")

@@ -47,6 +47,18 @@ COPY . .
 # Install the project itself (cheap — deps already there)
 RUN uv sync --frozen --no-dev
 
+# Pre-download the sentence-transformer model used by the chatbot indexer.
+# This bakes the weights (~90 MB) into the image layer so containers start
+# instantly with no network dependency at runtime.
+# Retries 3 times with 15s backoff to handle transient network issues on build servers.
+# If all attempts fail the build continues — the model will download on first container start.
+# To update the model: change the name here AND in services/chatbot_indexer.py.
+RUN for i in 1 2 3; do \
+      python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" \
+      && echo "Model cached." && break; \
+      echo "Attempt $i/3 failed — retrying in 15s..."; sleep 15; \
+    done; exit 0
+
 # Runtime dirs used by stem separation (demucs writes here)
 RUN mkdir -p /app/inputs /app/outputs
 
