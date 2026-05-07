@@ -219,6 +219,87 @@ Queue diagnostics:
 
 ## Features
 
+### Chatbot — Feature Help Agent
+
+A fully local, grounded Q&A endpoint that answers customer questions about the product using `functional_requirements.md` as its single source of truth. No LLM, no external API, no hallucination — every word in the answer is verbatim text from the doc.
+
+**How it works:**
+
+```
+POST /chatbot/ask  {"question": "how do I separate vocals?"}
+        │
+        ▼
+sentence-transformers/all-MiniLM-L6-v2  (local model, ~90 MB, cached on first run)
+        │  encodes the question into a 384-dim meaning vector
+        ▼
+cosine similarity against all 23 pre-encoded feature chunks
+        │  top-3 matches ranked by semantic closeness
+        ▼
+confidence gate  (threshold 0.30)
+   below threshold ──► polite fallback: "I can only answer questions about..."
+   above threshold ──► verbatim chunk from the doc + related section names
+        │
+        ▼
+{ answer, matched_sections, confidence, grounded }
+```
+
+The model index is built once at **startup** and held in memory. If `functional_requirements.md` is edited, the index auto-rebuilds on the next request (mtime check — no restart needed).
+
+**Why semantic, not keyword search:** BM25 / keyword matching fails on natural-language questions. "where to do Music Generation", "music creation", "how do I create a song?" all mean the same thing — semantic embeddings understand that; keyword search does not.
+
+**Endpoints:**
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `POST` | `/chatbot/ask` | Ask a question. Returns `answer`, `matched_sections`, `confidence`, `grounded`. |
+| `GET` | `/chatbot/health` | Returns `indexed_chunks`, `last_built_at`, `doc_mtime`. |
+| `POST` | `/chatbot/reindex` | Force-rebuilds the index (e.g. after editing the doc). |
+
+All three require a valid Clerk JWT (`Authorization: Bearer <token>`). `DEV_BYPASS_AUTH=true` works as normal.
+
+**Example:**
+```bash
+curl -X POST http://localhost:8000/chatbot/ask \
+  -H "Authorization: Bearer <clerk_jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"question": "how do I separate vocals from a song?"}'
+```
+```json
+{
+  "answer": "Here's what I found about **Stem Separation**:\n\n**What it does.** Stem Separation takes a finished song and pulls it apart into its individual instruments...",
+  "matched_sections": [
+    { "heading": "Stem Separation", "category": "Editing", "score": 0.606 }
+  ],
+  "confidence": 0.606,
+  "grounded": true
+}
+```
+
+**Production tip:** On first startup the model checks its local cache against HuggingFace (a few HEAD requests, no data transfer if already cached). To disable this entirely in production add to `.env`:
+```
+HF_HUB_OFFLINE=1
+```
+
+**Source of truth doc:** [`functional_requirements.md`](functional_requirements.md) — 23 feature sections across Generation, Editing, Production, and Account & Workspace. Edit this file to update chatbot answers; the index rebuilds automatically on the next request.
+
+---
+
+**How the chatbot works — end to end**
+
+**1. Startup** — when the FastAPI server boots, the `lifespan` handler calls `build_index()`. It reads `functional_requirements.md`, splits it into 23 chunks (one per `### Feature` heading), runs each chunk through the `all-MiniLM-L6-v2` model to get a 384-dimension meaning vector, and stores all vectors in memory. This takes ~1–2 seconds on first run (model load), then the server is warm.
+
+**2. User asks a question** — `POST /chatbot/ask` with `{"question": "how do I create a song?"}`. The router validates the JWT and passes the request to the service layer.
+
+**3. Semantic search** — the same model encodes the question into a vector. We compute the dot product (= cosine similarity, because vectors are L2-normalised) against all 23 chunk vectors. The result is a score from 0 to 1 for every chunk — 1 means "identical meaning", 0 means "completely unrelated".
+
+**4. Confidence gate** — if the top score is below `0.30`, the question is too far off-topic and the bot replies with a polite fallback. `"Capital of France"` scores `0.04` → fallback. `"Music creation"` scores `0.63` → grounded answer.
+
+**5. Answer** — the top chunk's body text (verbatim from the doc, max 1,200 chars) is wrapped in a short template: *"Here's what I found about **Music Generation**: …"* plus the names of the 2nd and 3rd matching sections as "Related:". No LLM writes anything — every word is from the doc.
+
+**6. Live updates** — on every request, the indexer checks `functional_requirements.md`'s file modification time. If it changed, the index rebuilds automatically without restarting the server.
+
+---
+
 ### AIME — Automated AI Music Editor
 
 Beat-accurate, AI-driven audio trimming to a target duration. Upload any MP3/WAV and AIME analyses its BPM, detects structural segments (intro/verse/build/chorus/peak/drop/bridge/outro), scores candidate trim windows, and uses a DeepSeek LLM agent to select the best musical window.
@@ -301,13 +382,15 @@ curl -X POST http://localhost:8000/image-to-song/generate \
 
 ```
 AI-Music-Gen/
-├── main.py                   # FastAPI app entry point, registers all routers
+├── main.py                   # FastAPI app entry point, registers all routers; lifespan builds chatbot index
 ├── celery_app.py             # Celery instance + queue config (musicgpt_album queue)
 ├── supabase_client.py        # Supabase singleton (service-role) client
 ├── pyproject.toml            # Project metadata and dependencies (uv)
 ├── requirements.txt          # pip-compatible dependency list
 ├── .env                      # Environment variables (gitignored)
 ├── .env.example              # Env var template with descriptions
+├── functional_requirements.md # Chatbot source of truth — 23 customer-facing feature descriptions
+├── TODO.md                   # Chatbot implementation checklist (all phases complete)
 ├── mock_data/
 │   ├── mock_state.py                        # In-memory task registry; tracks creation time per task_id for time-based progress simulation
 │   ├── generate_music_response.json         # Template for POST /music/generateMusic mock response (2 QUEUED tracks)
@@ -352,7 +435,8 @@ AI-Music-Gen/
 │   ├── image_to_song_model.py
 │   ├── album_model.py        # AlbumCreate, AlbumApprove, AlbumResponse, AlbumTrackResponse, TrackUpdate, TrackReplanRequest
 │   ├── sound_model.py        # SoundCreate, SoundResponse
-│   └── auto_edit_model.py    # AutoTrimRequest, AutoTrimResponse, CandidateWindow, AudioAnalysis, SegmentInfo
+│   ├── auto_edit_model.py    # AutoTrimRequest, AutoTrimResponse, CandidateWindow, AudioAnalysis, SegmentInfo
+│   └── chatbot_model.py      # AskRequest, AskResponse, MatchedSection
 ├── routers/
 │   ├── auth_router.py        # GET /auth/me, POST /auth/webhook/clerk
 │   ├── payment_router.py     # GET /payment/plans, POST /payment/checkout, GET /payment/subscription, POST /payment/webhook/dodo
@@ -373,6 +457,7 @@ AI-Music-Gen/
 │   ├── reference_match_router.py # POST /reference-match/analyze|process|vibe-prompt|save
 │   ├── podcast_router.py     # POST /podcast/produce|save
 │   ├── audio_edit_test_router.py # GET /test-edit/ui, POST /test-edit/cut|fade|loop|mix|overlay|split|eq|warmth|enhance|save
+│   ├── chatbot_router.py     # POST /chatbot/ask, GET /chatbot/health, POST /chatbot/reindex
 │   └── user_library_router.py # GET /library/
 └── services/
     ├── project_service.py    # CRUD for projects (filtered by user_id)
@@ -387,7 +472,9 @@ AI-Music-Gen/
     ├── user_library_service.py # Aggregate all user content across tables
     ├── warmth_service.py     # AI Analog Warmth: 7-stage DSP pipeline
     ├── enhancer_service.py   # AI Style Enhancer: 6 genre presets
-    └── auto_edit_service.py  # AIME: analyze, candidate scoring, trim, intelligent loop
+    ├── auto_edit_service.py  # AIME: analyze, candidate scoring, trim, intelligent loop
+    ├── chatbot_indexer.py    # Markdown parser, sentence-transformer index, mtime cache, cosine search
+    └── chatbot_service.py    # Confidence gate, fallback logic, answer composer
 ```
 
 ---

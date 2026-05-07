@@ -5,21 +5,21 @@
     {
       "conversion_id": "mock-conv-1",
       "status": "COMPLETED",
-      "title": "Mock Track 1 — Upbeat EDM",
+      "title": "Static Voices in the Void",
       "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-      "duration": 372.0,
-      "album_cover_path": null,
-      "generated_lyrics": "Mock lyrics for track 1\nVerse: The beat drops hard tonight\nChorus: We rise and feel the light",
+      "duration": 204.24,
+      "album_cover_path": "https://musicgpt.s3.us-east-1.amazonaws.com/img-gen-pipeline/1c5962f2-16d9-4de7-b8b0-f8ad789b27a8.png",
+      "generated_lyrics": "[Verse]\nThe oxygen gauge hums a low silver tune\nAgainst the backdrop of a hollow white moon\nI watch the wreckage of the decades float by\nSuspended in the velvet fluid of the sky\nMy tether is a ghost of a frayed copper line\nWhile gravity resigns from this grand design\n\n[Verse]\nRelics of orbit gather dust made of stars\nRusted antenna reaching out toward Mars\nThey pulse with the cadence of a heart long gone\nCaught in the cycle of an endless dawn\nI press my helmet to the vibrating glass\nWatching the shadows of the centuries pass\n\n[Chorus]\nIn the static I found your voice\nThrough the crackle of the solar wind\nIn the static I found your voice\nWhere the silence of the void begins\nA signal climbing through the cold debris\nThe only gravity that is pulling on me\n\n[Verse]\nThe dashboard flickers with a spectrum of blue\nTransmitting a sequence that leads back to you\nIt breathes through the wires of a dead relay\nTranslating the grief of a distant day\nA constellation of data starts to ignite\nCutting a path through the permanent night\n\n[Pre-Chorus]\nThe frequency trembles and begins to bloom\nFilling the corners of my metal room\nEvery distortion is a breath I take\nThe only promise that didn't break\n\n[Chorus]\nIn the static I found your voice\nThrough the crackle of the solar wind\nIn the static I found your voice\nWhere the silence of the void begins\nA signal climbing through the cold debris\nThe only gravity that is pulling on me",
       "error_message": null
     },
     {
       "conversion_id": "mock-conv-2",
       "status": "COMPLETED",
-      "title": "Mock Track 2 — Driving Synths",
+      "title": "Static Voices in the Void",
       "audio_url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-      "duration": 369.0,
-      "album_cover_path": null,
-      "generated_lyrics": "Mock lyrics for track 2\nVerse: Electric dreams fill the air\nChorus: Dance until we get there",
+      "duration": 233.48,
+      "album_cover_path": "https://musicgpt.s3.us-east-1.amazonaws.com/img-gen-pipeline/1c5962f2-16d9-4de7-b8b0-f8ad789b27a8.png",
+      "generated_lyrics": "[Verse]\nThe oxygen gauge hums a low silver tune\nAgainst the backdrop of a hollow white moon\nI watch the wreckage of the decades float by\nSuspended in the velvet fluid of the sky\nMy tether is a ghost of a frayed copper line\nWhile gravity resigns from this grand design\n\n[Verse]\nRelics of orbit gather dust made of stars\nRusted antenna reaching out toward Mars\nThey pulse with the cadence of a heart long gone\nCaught in the cycle of an endless dawn\nI press my helmet to the vibrating glass\nWatching the shadows of the centuries pass\n\n[Chorus]\nIn the static I found your voice\nThrough the crackle of the solar wind\nIn the static I found your voice\nWhere the silence of the void begins\nA signal climbing through the cold debris\nThe only gravity that is pulling on me\n\n[Verse]\nThe dashboard flickers with a spectrum of blue\nTransmitting a sequence that leads back to you\nIt breathes through the wires of a dead relay\nTranslating the grief of a distant day\nA constellation of data starts to ignite\nCutting a path through the permanent night\n\n[Pre-Chorus]\nThe frequency trembles and begins to bloom\nFilling the corners of my metal room\nEvery distortion is a breath I take\nThe only promise that didn't break\n\n[Chorus]\nIn the static I found your voice\nThrough the crackle of the solar wind\nIn the static I found your voice\nWhere the silence of the void begins\nA signal climbing through the cold debris\nThe only gravity that is pulling on me",
       "error_message": null
     }
   ]

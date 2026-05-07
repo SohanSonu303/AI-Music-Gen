@@ -1,0 +1,48 @@
+# VCS
+.git
+.gitignore
+
+# Python caches & venvs
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv
+venv
+env
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Local env files (mounted/injected at runtime instead)
+.env
+.env.local
+*.env.local
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+*.swp
+
+# Project artifacts not needed in image
+inputs/*
+outputs/*
+!inputs/.gitkeep
+!outputs/.gitkeep
+
+# Docs / planning files (keep image small)
+*.md
+!README.md
+plan*.md
+test.md
+explain.md
+editing.md
+album_feature.md
+performace_impro.md
+
+# Docker files themselves
+Dockerfile
+docker-compose*.yml
+.dockerignore

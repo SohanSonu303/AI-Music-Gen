@@ -3,7 +3,6 @@ import json
 import tempfile
 import os
 import logging
-from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
@@ -11,7 +10,7 @@ import httpx
 import numpy as np
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pedalboard.io import AudioFile
 
 from auth.clerk_auth import get_current_user
@@ -48,12 +47,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/test-edit", tags=["Audio Edit Testing"])
 
-_HTML = Path(__file__).parent.parent / "audio_edit_test.html"
-
-
-@router.get("/ui", include_in_schema=False)
-def test_ui():
-    return FileResponse(_HTML, media_type="text/html")
 
 
 async def _resolve_source(file: Optional[UploadFile], url: Optional[str], label: str = "audio") -> str:

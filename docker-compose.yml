@@ -1,0 +1,78 @@
+# docker-compose for the AI-Music-Gen stack.
+#
+# Three services:
+#   redis  — Celery broker + backend (broker URL: redis://redis:6379/0)
+#   api    — FastAPI server on :8000
+#   worker — Celery worker, queue=musicgpt_album, concurrency=$MUSICGPT_MAX_PARALLEL
+#
+# api and worker share the same image (built from the Dockerfile) and the
+# same .env file. Inside the docker network, the api/worker reach Redis at
+# the hostname "redis" — make sure REDIS_URL in your .env points there:
+#
+#   REDIS_URL=redis://redis:6379/0
+#
+# Bring everything up:    docker compose up --build
+# Tail worker logs:       docker compose logs -f worker
+# Stop everything:        docker compose down
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: aimusic-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    image: ${DOCKER_IMAGE:-aimusic-app:latest}
+    container_name: aimusic-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Override REDIS_URL so it resolves to the redis service on the docker network.
+      # Comment this out if your .env already uses redis://redis:6379/0.
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      # Persist demucs job working dirs across restarts (optional)
+      - ./inputs:/app/inputs
+      - ./outputs:/app/outputs
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  worker:
+    image: ${DOCKER_IMAGE:-aimusic-app:latest}
+    container_name: aimusic-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    volumes:
+      - ./inputs:/app/inputs
+      - ./outputs:/app/outputs
+    # Concurrency comes from MUSICGPT_MAX_PARALLEL (defaults to 1 in celery_app.py).
+    # Bump it in .env when you upgrade your MusicGPT plan, then restart this service.
+    command:
+      - sh
+      - -c
+      - "celery -A celery_app worker -Q musicgpt_album --concurrency=${MUSICGPT_MAX_PARALLEL:-1} --loglevel=info"
+
+volumes:
+  redis-data:

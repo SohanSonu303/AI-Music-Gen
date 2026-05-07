@@ -209,3 +209,5 @@ __marimo__/
 # MCP config (contains secrets)
 .mcp.json
 .claude/
+album_feature.md
+performace_impro.md
