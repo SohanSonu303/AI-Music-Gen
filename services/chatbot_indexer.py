@@ -12,6 +12,11 @@ logger = logging.getLogger(__name__)
 DOC_PATH = Path(__file__).parent.parent / "functional_requirements.md"
 _MODEL_NAME = "all-MiniLM-L6-v2"
 
+# When SENTENCE_TRANSFORMERS_HOME is set (e.g. in Docker), the library resolves
+# the cached model automatically via that env var.  This path is used to emit a
+# clear log message so operators know the model loaded from the baked-in cache.
+_MODEL_CACHE_DIR = os.environ.get("SENTENCE_TRANSFORMERS_HOME")
+
 _MIN_CHUNK_CHARS = 100
 _MAX_CHUNK_CHARS = 1500
 
@@ -34,7 +39,10 @@ class Chunk:
 def _get_model() -> SentenceTransformer:
     global _model
     if _model is None:
-        logger.info("Loading sentence-transformer model: %s", _MODEL_NAME)
+        if _MODEL_CACHE_DIR:
+            logger.info("Loading sentence-transformer model from cache: %s", _MODEL_CACHE_DIR)
+        else:
+            logger.info("Loading sentence-transformer model: %s (will download if not cached)", _MODEL_NAME)
         _model = SentenceTransformer(_MODEL_NAME)
         logger.info("Model loaded.")
     return _model

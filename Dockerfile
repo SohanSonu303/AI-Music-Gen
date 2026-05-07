@@ -11,7 +11,8 @@ ENV PYTHONUNBUFFERED=1 \
     UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/opt/venv/bin:$PATH" \
+    SENTENCE_TRANSFORMERS_HOME=/app/sentence_transformers
 
 # System dependencies
 #   ffmpeg       — required by demucs (stem separation) + audio decoding
@@ -47,15 +48,14 @@ COPY . .
 # Install the project itself (cheap — deps already there)
 RUN uv sync --frozen --no-dev
 
-# Pre-download the sentence-transformer model used by the chatbot indexer.
-# This bakes the weights (~90 MB) into the image layer so containers start
-# instantly with no network dependency at runtime.
-# Retries 3 times with 15s backoff to handle transient network issues on build servers.
-# If all attempts fail the build continues — the model will download on first container start.
+# Pre-download the sentence-transformer model into /app/sentence_transformers
+# (set via SENTENCE_TRANSFORMERS_HOME above) so it is baked into the image layer.
+# The app user gets access via the chown below.  Retries 3×/15s for flaky build servers.
 # To update the model: change the name here AND in services/chatbot_indexer.py.
-RUN for i in 1 2 3; do \
+RUN mkdir -p /app/sentence_transformers && \
+    for i in 1 2 3; do \
       python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" \
-      && echo "Model cached." && break; \
+      && echo "Model cached at /app/sentence_transformers." && break; \
       echo "Attempt $i/3 failed — retrying in 15s..."; sleep 15; \
     done; exit 0
 

@@ -1,6 +1,6 @@
 import logging
 import os
-import tempfile
+import uuid
 from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
@@ -13,7 +13,10 @@ from models.image_to_song_model import ImageToSongCreate
 from models.music_model import MusicResponse
 from services.music_service import MusicService
 from services.token_service import require_tokens
+from supabase_client import supabase
 from tasks.music_tasks import submit_and_poll_task
+
+IMAGE_BUCKET_NAME = os.environ.get("IMAGE_BUCKET_NAME", "image-uploads")
 
 logger = logging.getLogger(__name__)
 
@@ -51,21 +54,25 @@ async def generate_from_image(
     user: UserContext = Depends(get_current_user),
 ):
     user_id = str(user.id)
-    temp_image_path: Optional[str] = None
-    queued = False
+    resolved_image_url: Optional[str] = image_url or None
+    image_storage_path: Optional[str] = None
 
     try:
         if image_file is not None:
             extension = os.path.splitext(image_file.filename or "")[1] or ".img"
-            with tempfile.NamedTemporaryFile(delete=False, suffix=extension) as tmp:
-                content = await image_file.read()
-                tmp.write(content)
-                temp_image_path = tmp.name
+            content = await image_file.read()
+            image_storage_path = f"{user_id}/{uuid.uuid4()}{extension}"
+            content_type = image_file.content_type or "application/octet-stream"
+            supabase.storage.from_(IMAGE_BUCKET_NAME).upload(
+                image_storage_path, content, {"content-type": content_type}
+            )
+            resolved_image_url = supabase.storage.from_(IMAGE_BUCKET_NAME).get_public_url(image_storage_path)
+            logger.info("Uploaded image to storage: path=%s url=%s", image_storage_path, resolved_image_url)
 
         payload = ImageToSongCreate(
             project_id=project_id,
-            image_url=image_url,
-            image_file_path=temp_image_path,
+            image_url=resolved_image_url,
+            image_file_path=None,
             prompt=prompt,
             lyrics=lyrics,
             make_instrumental=make_instrumental,
@@ -80,7 +87,7 @@ async def generate_from_image(
             "Image-to-song request: project_id=%s user_id=%s image_source=%s",
             project_id,
             user_id,
-            "file" if temp_image_path else "url",
+            "file" if image_file is not None else "url",
         )
 
         require_tokens(user_id, token_costs.IMAGE_TO_SONG, "image_to_song")
@@ -88,6 +95,8 @@ async def generate_from_image(
         records, celery_params = await MusicService.create_image_to_song(
             payload, user_id=user_id, user_name=user.full_name or "", user_email=user.email
         )
+        if image_storage_path:
+            celery_params["image_storage_path"] = image_storage_path
         stable_task_id = records[0]["task_id"]
         record_ids = [r["id"] for r in records]
         try:
@@ -102,12 +111,16 @@ async def generate_from_image(
                 queue_exc,
             )
             MusicService.mark_task_failed(stable_task_id, f"Queueing failed: {queue_exc}")
+            if image_storage_path:
+                try:
+                    supabase.storage.from_(IMAGE_BUCKET_NAME).remove([image_storage_path])
+                except Exception:
+                    pass
             raise HTTPException(
                 status_code=503,
                 detail="Queue unavailable (Redis/Celery). Try again after restarting Redis and Celery worker.",
             )
         background_tasks.add_task(MusicService.fail_if_stale_queued, stable_task_id)
-        queued = True
         logger.info("Image-to-song job queued to Celery: stable_task_id=%s", stable_task_id)
         return records
     except HTTPException:
@@ -120,5 +133,3 @@ async def generate_from_image(
     finally:
         if image_file is not None:
             await image_file.close()
-        if temp_image_path and not queued and os.path.exists(temp_image_path):
-            os.remove(temp_image_path)

@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 MUSICGPT_BASE_URL = "https://api.musicgpt.com/api/public/v1"
 MUSICGPT_API_KEY = os.environ.get("MUSICGPT_API_KEY")
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "music-generated")
+IMAGE_BUCKET_NAME = os.environ.get("IMAGE_BUCKET_NAME", "image-uploads")
 
 POLL_INTERVAL_SECONDS = 5
 MAX_POLL_DURATION_SECONDS = 300
@@ -79,15 +80,20 @@ def _mark_music_failed(task_id: str, message: str, conversion_id: str | None = N
     query.execute()
 
 
-def _cleanup_temp_image(image_file_path: str | None) -> None:
-    if not image_file_path:
-        return
-    try:
-        if os.path.exists(image_file_path):
-            os.remove(image_file_path)
-            logger.info("Removed temp image file: path=%s", image_file_path)
-    except Exception as cleanup_exc:
-        logger.warning("Failed to remove temp image file %s: %s", image_file_path, cleanup_exc)
+def _cleanup_temp_image(image_file_path: str | None, storage_path: str | None = None) -> None:
+    if image_file_path:
+        try:
+            if os.path.exists(image_file_path):
+                os.remove(image_file_path)
+                logger.info("Removed temp image file: path=%s", image_file_path)
+        except Exception as cleanup_exc:
+            logger.warning("Failed to remove temp image file %s: %s", image_file_path, cleanup_exc)
+    if storage_path:
+        try:
+            supabase.storage.from_(IMAGE_BUCKET_NAME).remove([storage_path])
+            logger.info("Deleted uploaded image from storage: path=%s", storage_path)
+        except Exception as cleanup_exc:
+            logger.warning("Failed to delete image from storage: path=%s error=%s", storage_path, cleanup_exc)
 
 
 def submit_image_to_song_request(
@@ -106,15 +112,17 @@ def submit_image_to_song_request(
     webhook_url: str | None = None,
 ) -> dict:
     """
-    Submit MusicGPT image_to_song request using either image_url or local image_file_path.
-    Returns task_id, conversion_id_1, and eta.
+    Submit MusicGPT image_to_song request.
+
+    Always uploads the image as a file so MusicGPT receives the bytes directly
+    (avoids any async URL-fetch race on MusicGPT's side).
+    - image_url: downloaded to a local temp file, sent as multipart, then deleted.
+    - image_file_path: sent directly as multipart.
     """
-    if bool(image_url) == bool(image_file_path):
-        raise MusicGPTValidationError("Provide exactly one of image_url or image_file_path")
+    if not image_url and not image_file_path:
+        raise MusicGPTValidationError("Provide at least one of image_url or image_file_path")
 
     form_data: dict[str, str] = {}
-    if image_url:
-        form_data["image_url"] = image_url
     if prompt:
         form_data["prompt"] = prompt
     if lyrics:
@@ -127,28 +135,37 @@ def submit_image_to_song_request(
         form_data["voice_id"] = voice_id
     if webhook_url:
         form_data["webhook_url"] = webhook_url
-
     form_data["make_instrumental"] = "true" if make_instrumental else "false"
     form_data["vocal_only"] = "true" if vocal_only else "false"
 
-    multipart_fields = [(key, (None, value)) for key, value in form_data.items()]
+    multipart_fields = [(k, (None, v)) for k, v in form_data.items()]
 
-    response: httpx.Response
-    if image_file_path:
-        file_name = os.path.basename(image_file_path) or "image_upload"
-        with open(image_file_path, "rb") as image_file:
+    tmp_path: str | None = None
+    try:
+        # Resolve the file to upload: download from URL if no local path given.
+        if image_file_path:
+            resolved_path = image_file_path
+        else:
+            img_resp = client.get(image_url)
+            img_resp.raise_for_status()
+            ext = os.path.splitext(image_url.split("?")[0])[-1] or ".img"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                tmp.write(img_resp.content)
+                tmp_path = tmp.name
+            resolved_path = tmp_path
+
+        file_name = os.path.basename(resolved_path) or "image_upload"
+        with open(resolved_path, "rb") as image_file:
             multipart_fields.append(("image_file", (file_name, image_file, "application/octet-stream")))
             response = client.post(
                 f"{MUSICGPT_BASE_URL}/image_to_song",
                 headers=headers,
                 files=multipart_fields,
             )
-    else:
-        response = client.post(
-            f"{MUSICGPT_BASE_URL}/image_to_song",
-            headers=headers,
-            files=multipart_fields,
-        )
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+            logger.info("Removed temp image download: path=%s", tmp_path)
 
     if response.status_code == 422:
         raise MusicGPTValidationError(f"MusicGPT image_to_song validation failed: {response.text}")
@@ -209,6 +226,8 @@ def submit_and_poll_task(
     )
 
     image_file_path = params.get("image_file_path") if operation == "image_to_song" else None
+    # Wrapped in a list so the submission block can clear it and prevent double-delete.
+    image_storage_path: list[str | None] = [params.get("image_storage_path") if operation == "image_to_song" else None]
     result: dict | None = None
 
     # ── Step 1: Submit to MusicGPT ────────────────────────────────────────────
@@ -335,6 +354,14 @@ def submit_and_poll_task(
                     voice_id=params.get("voice_id"),
                     webhook_url=params.get("webhook_url"),
                 )
+                # MusicGPT already has the bytes — safe to delete from storage immediately.
+                if image_storage_path[0]:
+                    try:
+                        supabase.storage.from_(IMAGE_BUCKET_NAME).remove([image_storage_path[0]])
+                        logger.info("Deleted uploaded image from storage: path=%s", image_storage_path[0])
+                        image_storage_path[0] = None  # prevent double-delete in error cleanup paths
+                    except Exception as cleanup_exc:
+                        logger.warning("Failed to delete image from storage: path=%s error=%s", image_storage_path[0], cleanup_exc)
 
             else:
                 raise ValueError(f"Unknown operation: {operation}")
@@ -352,7 +379,7 @@ def submit_and_poll_task(
         logger.error("submit_and_poll_task validation error: operation=%s error=%s", operation, exc)
         _mark_music_failed(stable_task_id, str(exc))
         _try_refund(params.get("user_id", ""), operation, stable_task_id)
-        _cleanup_temp_image(image_file_path)
+        _cleanup_temp_image(image_file_path, image_storage_path[0])
         return
     except httpx.HTTPError as exc:
         status_code = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
@@ -360,7 +387,7 @@ def submit_and_poll_task(
         _mark_music_failed(stable_task_id, str(exc))
         if status_code is not None and 400 <= status_code < 500:
             _try_refund(params.get("user_id", ""), operation, stable_task_id)
-            _cleanup_temp_image(image_file_path)
+            _cleanup_temp_image(image_file_path, image_storage_path[0])
             return
         try:
             raise self.retry(exc=exc)
@@ -370,20 +397,20 @@ def submit_and_poll_task(
                 operation, stable_task_id,
             )
             _try_refund(params.get("user_id", ""), operation, stable_task_id)
-            _cleanup_temp_image(image_file_path)
+            _cleanup_temp_image(image_file_path, image_storage_path[0])
             return
     except Exception as exc:
         logger.error("submit_and_poll_task unexpected error: operation=%s error=%s", operation, exc)
         _mark_music_failed(stable_task_id, str(exc))
         _try_refund(params.get("user_id", ""), operation, stable_task_id)
-        _cleanup_temp_image(image_file_path)
+        _cleanup_temp_image(image_file_path, image_storage_path[0])
         return
 
     if not result:
         logger.error("submit_and_poll_task did not receive MusicGPT response payload: operation=%s", operation)
         _mark_music_failed(stable_task_id, "MusicGPT response payload missing")
         _try_refund(params.get("user_id", ""), operation, stable_task_id)
-        _cleanup_temp_image(image_file_path)
+        _cleanup_temp_image(image_file_path, image_storage_path[0])
         return
 
     musicgpt_task_id = result["task_id"]

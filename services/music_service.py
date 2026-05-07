@@ -222,11 +222,14 @@ class MusicService:
             "prompt": data.prompt,
             "music_style": None,
         }
-        records = [{**base_record, "conversion_id": f"{stable_task_id}_1"}]
+        records = [
+            {**base_record, "conversion_id": f"{stable_task_id}_1"},
+            {**base_record, "conversion_id": f"{stable_task_id}_2"},
+        ]
         db_response = await run_in_threadpool(lambda: supabase.table("music_metadata").insert(records).execute())
         inserted = db_response.data
         logger.info(
-            "Pre-inserted 1 QUEUED image_to_song music_metadata row: stable_task_id=%s",
+            "Pre-inserted 2 QUEUED image_to_song music_metadata rows: stable_task_id=%s",
             stable_task_id,
         )
 
