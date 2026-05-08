@@ -35,6 +35,7 @@ outputs/*
 # Docs / planning files (keep image small)
 *.md
 !README.md
+!functional_requirements.md
 plan*.md
 test.md
 explain.md
