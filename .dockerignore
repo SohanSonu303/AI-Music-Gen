@@ -46,3 +46,8 @@ performace_impro.md
 Dockerfile
 docker-compose*.yml
 .dockerignore
+
+# Claude / MCP config (dev tooling, not needed in image)
+.claude
+.mcp.json
+.code-review-graph

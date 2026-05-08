@@ -702,11 +702,34 @@ def _poll_and_store(
                             title = title or conversion.get("title_1")
                             duration = duration or conversion.get("conversion_duration_1")
                             generated_lyrics = generated_lyrics or conversion.get("lyrics_1")
-                        else:
+                        elif conversion_id == conversion.get("conversion_id_2"):
                             audio_url = conversion.get("conversion_path_2")
                             title = title or conversion.get("title_2")
                             duration = duration or conversion.get("conversion_duration_2")
                             generated_lyrics = generated_lyrics or conversion.get("lyrics_2")
+                        else:
+                            # conversion_id matched neither _1 nor _2 — MusicGPT may return
+                            # partial data (no _2 fields) when queried by a secondary conversion_id;
+                            # pick up whichever path is available
+                            audio_url = conversion.get("conversion_path_1") or conversion.get("conversion_path_2")
+                            title = title or conversion.get("title_1") or conversion.get("title_2")
+                            duration = duration or conversion.get("conversion_duration_1") or conversion.get("conversion_duration_2")
+                            generated_lyrics = generated_lyrics or conversion.get("lyrics_1") or conversion.get("lyrics_2")
+                            logger.warning(
+                                "conversion_id %s matched neither conversion_id_1=%s nor conversion_id_2=%s — using fallback path",
+                                conversion_id, conversion.get("conversion_id_1"), conversion.get("conversion_id_2"),
+                            )
+
+                    if not audio_url:
+                        logger.error(
+                            "No audio URL in COMPLETED response: musicgpt_task_id=%s conversion_id=%s conversion=%s",
+                            musicgpt_task_id, conversion_id, conversion,
+                        )
+                        supabase.table("music_metadata").update({
+                            "status": "FAILED",
+                            "error_message": "Audio URL missing in completed MusicGPT response",
+                        }).eq("task_id", db_task_id).eq("conversion_id", conversion_id).execute()
+                        return "FAILED"
 
                     cover = conversion.get("album_cover_path") or conversion.get("album_cover_thumbnail")
                     logger.info(

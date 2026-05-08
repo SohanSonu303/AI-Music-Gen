@@ -92,6 +92,11 @@ app.include_router(user_library_router.router)
 app.include_router(chatbot_router.router)
 
 
+@app.get("/version")
+def get_version():
+    return {"version": "version2"}
+
+
 @app.get("/")
 def read_root():
     return {"message": "Hello from FastAPI 🚀"}

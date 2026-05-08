@@ -72,7 +72,7 @@ services:
     command:
       - sh
       - -c
-      - "celery -A celery_app worker -Q musicgpt_album --concurrency=${MUSICGPT_MAX_PARALLEL:-1} --loglevel=info"
+      - "celery -A celery_app worker -Q musicgpt_album --concurrency=${MUSICGPT_MAX_PARALLEL:-3} --loglevel=info"
 
 volumes:
   redis-data:
